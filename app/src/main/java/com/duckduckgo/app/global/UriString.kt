@@ -17,7 +17,7 @@
 package com.duckduckgo.app.global
 
 import android.net.Uri
-import android.support.v4.util.PatternsCompat
+import androidx.core.util.PatternsCompat
 
 class UriString {
 
@@ -27,18 +27,22 @@ class UriString {
         private const val space = " "
         private val webUrlRegex = PatternsCompat.WEB_URL.toRegex()
 
+        fun host(uriString: String): String? {
+            return Uri.parse(uriString).baseHost
+        }
+
         fun sameOrSubdomain(child: String, parent: String): Boolean {
-            val childHost = Uri.parse(child)?.baseHost ?: return false
-            val parentHost = Uri.parse(parent)?.baseHost ?: return false
+            val childHost = host(child) ?: return false
+            val parentHost = host(parent) ?: return false
             return parentHost == childHost || childHost.endsWith(".$parentHost")
         }
 
         fun isWebUrl(inputQuery: String): Boolean {
+            if (inputQuery.contains(space)) return false
             val uri = Uri.parse(inputQuery).withScheme()
             if (uri.scheme != UrlScheme.http && uri.scheme != UrlScheme.https) return false
             if (uri.userInfo != null) return false
             if (uri.host == null) return false
-            if (uri.path.contains(space)) return false
             return isValidHost(uri.host)
         }
 

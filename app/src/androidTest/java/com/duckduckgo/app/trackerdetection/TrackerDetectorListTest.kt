@@ -17,22 +17,19 @@
 package com.duckduckgo.app.trackerdetection
 
 
-import android.support.test.runner.AndroidJUnit4
 import com.duckduckgo.app.privacy.store.PrivacySettingsStore
 import com.duckduckgo.app.trackerdetection.Client.ClientName.*
 import com.duckduckgo.app.trackerdetection.model.ResourceType
 import com.duckduckgo.app.trackerdetection.model.TrackerNetworks
 import com.duckduckgo.app.trackerdetection.model.TrackingEvent
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.whenever
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.whenever
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 
 
-@RunWith(AndroidJUnit4::class)
 class TrackerDetectorListTest {
 
     companion object {
@@ -40,6 +37,7 @@ class TrackerDetectorListTest {
         private val resourceType = ResourceType.UNKNOWN
     }
 
+    private lateinit var mockTrackerNetworks: TrackerNetworks
     private lateinit var blockingOnlyTestee: TrackerDetector
     private lateinit var testeeWithWhitelist: TrackerDetector
     private lateinit var settingStore: PrivacySettingsStore
@@ -54,13 +52,15 @@ class TrackerDetectorListTest {
         val trackersWhitelistAdblocks = adblockClient(TRACKERSWHITELIST, "binary/easylist_sample")
 
         settingStore = mock()
+        mockTrackerNetworks = mock()
+
         whenever(settingStore.privacyOn).thenReturn(true)
 
-        blockingOnlyTestee = TrackerDetectorImpl(TrackerNetworks(), settingStore)
+        blockingOnlyTestee = TrackerDetectorImpl(mockTrackerNetworks, settingStore)
         blockingOnlyTestee.addClient(easyprivacyAdblock)
         blockingOnlyTestee.addClient(easylistAdblock)
 
-        testeeWithWhitelist = TrackerDetectorImpl(TrackerNetworks(), settingStore)
+        testeeWithWhitelist = TrackerDetectorImpl(mockTrackerNetworks, settingStore)
         testeeWithWhitelist.addClient(trackersWhitelistAdblocks)
         testeeWithWhitelist.addClient(easyprivacyAdblock)
         testeeWithWhitelist.addClient(easylistAdblock)
@@ -93,7 +93,7 @@ class TrackerDetectorListTest {
     }
 
     private fun adblockClient(name: Client.ClientName, dataFile: String): Client {
-        val data = javaClass.classLoader.getResource(dataFile).readBytes()
+        val data = javaClass.classLoader!!.getResource(dataFile).readBytes()
         val initialAdBlock = AdBlockClient(name)
         initialAdBlock.loadBasicData(data)
         val adblockWithProcessedData = AdBlockClient(name)

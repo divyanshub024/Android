@@ -16,9 +16,9 @@
 
 package com.duckduckgo.app.tabs.ui
 
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.ViewModel
-import android.support.annotation.StringRes
+import androidx.annotation.StringRes
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.ViewModel
 import com.duckduckgo.app.browser.R
 import com.duckduckgo.app.browser.session.WebViewSessionStorage
 import com.duckduckgo.app.global.SingleLiveEvent
@@ -36,23 +36,19 @@ class TabSwitcherViewModel(private val tabRepository: TabRepository, private val
         object Close : Command()
     }
 
-    fun onNewTabRequested() {
+    suspend fun onNewTabRequested() {
         tabRepository.add()
         command.value = Command.Close
     }
 
-    fun onTabSelected(tab: TabEntity) {
+    suspend fun onTabSelected(tab: TabEntity) {
         tabRepository.select(tab.tabId)
         command.value = Command.Close
     }
 
-    fun onTabDeleted(tab: TabEntity) {
+    suspend fun onTabDeleted(tab: TabEntity) {
         tabRepository.delete(tab)
         webViewSessionStorage.deleteSession(tab.tabId)
-    }
-
-    fun onClearRequested() {
-        tabRepository.deleteAll()
     }
 
     fun onClearComplete() {

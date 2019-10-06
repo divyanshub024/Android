@@ -16,23 +16,26 @@
 
 package com.duckduckgo.app.privacy.ui
 
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.MutableLiveData
-import android.arch.lifecycle.Observer
-import android.arch.lifecycle.ViewModel
-import android.support.annotation.VisibleForTesting
+import androidx.annotation.VisibleForTesting
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModel
 import com.duckduckgo.app.global.model.Site
 import com.duckduckgo.app.privacy.db.NetworkLeaderboardDao
-import com.duckduckgo.app.privacy.db.NetworkLeaderboardDao.NetworkTally
-import com.duckduckgo.app.privacy.model.*
+import com.duckduckgo.app.privacy.db.NetworkLeaderboardEntry
+import com.duckduckgo.app.privacy.model.HttpsStatus
+import com.duckduckgo.app.privacy.model.PrivacyGrade
+import com.duckduckgo.app.privacy.model.PrivacyPractices
+import com.duckduckgo.app.privacy.model.PrivacyPractices.Summary.UNKNOWN
 import com.duckduckgo.app.privacy.store.PrivacySettingsStore
 import com.duckduckgo.app.statistics.pixels.Pixel
-import com.duckduckgo.app.statistics.pixels.Pixel.PixelName.PRIVACY_DASHBOARD_OPENED
+import com.duckduckgo.app.statistics.pixels.Pixel.PixelName.*
 
 class PrivacyDashboardViewModel(
     private val settingsStore: PrivacySettingsStore,
     networkLeaderboardDao: NetworkLeaderboardDao,
-    pixel: Pixel
+    private val pixel: Pixel
 ) : ViewModel() {
 
     data class ViewState(
@@ -40,23 +43,23 @@ class PrivacyDashboardViewModel(
         val beforeGrade: PrivacyGrade,
         val afterGrade: PrivacyGrade,
         val httpsStatus: HttpsStatus,
-        val networkCount: Int,
+        val trackerCount: Int,
         val allTrackersBlocked: Boolean,
-        val practices: TermsOfService.Practices,
+        val practices: PrivacyPractices.Summary,
         val toggleEnabled: Boolean,
-        val showTrackerNetworkLeaderboard: Boolean,
-        val domainsVisited: Int,
-        val trackerNetworkTally: List<NetworkTally>,
+        val shouldShowTrackerNetworkLeaderboard: Boolean,
+        val sitesVisited: Int,
+        val trackerNetworkEntries: List<NetworkLeaderboardEntry>,
         val shouldReloadPage: Boolean
     )
 
     val viewState: MutableLiveData<ViewState> = MutableLiveData()
     private var site: Site? = null
 
-    private val domainsVisited: LiveData<Int> = networkLeaderboardDao.domainsVisitedCount()
-    private val domainsVisitedObserver = Observer<Int> { onDomainsVisitedChanged(it) }
-    private val trackerNetworkTally: LiveData<List<NetworkTally>> = networkLeaderboardDao.trackerNetworkTally()
-    private val trackerNetworkActivityObserver = Observer<List<NetworkTally>> { onTrackerNetworkTallyChanged(it) }
+    private val sitesVisited: LiveData<Int> = networkLeaderboardDao.sitesVisited()
+    private val sitesVisitedObserver = Observer<Int> { onSitesVisitedChanged(it) }
+    private val trackerNetworkLeaderboard: LiveData<List<NetworkLeaderboardEntry>> = networkLeaderboardDao.trackerNetworkLeaderboard()
+    private val trackerNetworkActivityObserver = Observer<List<NetworkLeaderboardEntry>> { onTrackerNetworkEntriesChanged(it) }
 
     private val privacyInitiallyOn = settingsStore.privacyOn
 
@@ -66,37 +69,37 @@ class PrivacyDashboardViewModel(
     init {
         pixel.fire(PRIVACY_DASHBOARD_OPENED)
         resetViewState()
-        domainsVisited.observeForever(domainsVisitedObserver)
-        trackerNetworkTally.observeForever(trackerNetworkActivityObserver)
+        sitesVisited.observeForever(sitesVisitedObserver)
+        trackerNetworkLeaderboard.observeForever(trackerNetworkActivityObserver)
     }
 
     @VisibleForTesting
     public override fun onCleared() {
         super.onCleared()
-        domainsVisited.removeObserver(domainsVisitedObserver)
-        trackerNetworkTally.removeObserver(trackerNetworkActivityObserver)
+        sitesVisited.removeObserver(sitesVisitedObserver)
+        trackerNetworkLeaderboard.removeObserver(trackerNetworkActivityObserver)
     }
 
-    fun onDomainsVisitedChanged(count: Int?) {
-        val domainCount = count ?: 0
-        val networkCount = viewState.value?.trackerNetworkTally?.count() ?: 0
+    fun onSitesVisitedChanged(count: Int?) {
+        val siteCount = count ?: 0
+        val networkCount = viewState.value?.trackerNetworkEntries?.count() ?: 0
         viewState.value = viewState.value?.copy(
-            showTrackerNetworkLeaderboard = showTrackerNetworkLeaderboard(domainCount, networkCount),
-            domainsVisited = domainCount
+            shouldShowTrackerNetworkLeaderboard = showTrackerNetworkLeaderboard(siteCount, networkCount),
+            sitesVisited = siteCount
         )
     }
 
-    fun onTrackerNetworkTallyChanged(tally: List<NetworkTally>?) {
-        val domainCount = viewState.value?.domainsVisited ?: 0
-        val networkTally = tally ?: emptyList()
+    fun onTrackerNetworkEntriesChanged(networkLeaderboardEntries: List<NetworkLeaderboardEntry>?) {
+        val domainCount = viewState.value?.sitesVisited ?: 0
+        val networkEntries = networkLeaderboardEntries ?: emptyList()
         viewState.value = viewState.value?.copy(
-            showTrackerNetworkLeaderboard = showTrackerNetworkLeaderboard(domainCount, networkTally.count()),
-            trackerNetworkTally = networkTally
+            shouldShowTrackerNetworkLeaderboard = showTrackerNetworkLeaderboard(domainCount, networkEntries.count()),
+            trackerNetworkEntries = networkEntries
         )
     }
 
-    private fun showTrackerNetworkLeaderboard(domainCount: Int, networkCount: Int): Boolean {
-        return domainCount > LEADERNOARD_MIN_DOMAINS_EXCLUSIVE && networkCount >= LEADERBOARD_MIN_NETWORKS
+    private fun showTrackerNetworkLeaderboard(siteVisitedCount: Int, networkCount: Int): Boolean {
+        return siteVisitedCount > LEADERBOARD_MIN_DOMAINS_EXCLUSIVE && networkCount >= LEADERBOARD_MIN_NETWORKS
     }
 
     fun onSiteChanged(site: Site?) {
@@ -114,32 +117,38 @@ class PrivacyDashboardViewModel(
             beforeGrade = PrivacyGrade.UNKNOWN,
             afterGrade = PrivacyGrade.UNKNOWN,
             httpsStatus = HttpsStatus.SECURE,
-            networkCount = 0,
+            trackerCount = 0,
             allTrackersBlocked = true,
             toggleEnabled = settingsStore.privacyOn,
-            practices = TermsOfService.Practices.UNKNOWN,
-            showTrackerNetworkLeaderboard = false,
-            domainsVisited = 0,
-            trackerNetworkTally = emptyList(),
+            practices = UNKNOWN,
+            shouldShowTrackerNetworkLeaderboard = false,
+            sitesVisited = 0,
+            trackerNetworkEntries = emptyList(),
             shouldReloadPage = shouldReloadPage
         )
     }
 
     private fun updateSite(site: Site) {
+        val grades = site.calculateGrades()
+
         viewState.value = viewState.value?.copy(
             domain = site.uri?.host ?: "",
-            beforeGrade = site.grade,
-            afterGrade = site.improvedGrade,
+            beforeGrade = grades.grade,
+            afterGrade = grades.improvedGrade,
             httpsStatus = site.https,
-            networkCount = site.networkCount,
+            trackerCount = site.trackerCount,
             allTrackersBlocked = site.allTrackersBlocked,
-            practices = site.termsOfService.practices
+            practices = site.privacyPractices.summary
         )
     }
 
     fun onPrivacyToggled(enabled: Boolean) {
         if (enabled != viewState.value?.toggleEnabled) {
+
             settingsStore.privacyOn = enabled
+            val pixelName = if (enabled) TRACKER_BLOCKER_DASHBOARD_TURNED_ON else TRACKER_BLOCKER_DASHBOARD_TURNED_OFF
+            pixel.fire(pixelName)
+
             viewState.value = viewState.value?.copy(
                 toggleEnabled = enabled,
                 shouldReloadPage = shouldReloadPage
@@ -149,7 +158,7 @@ class PrivacyDashboardViewModel(
 
     private companion object {
         private const val LEADERBOARD_MIN_NETWORKS = 3
-        private const val LEADERNOARD_MIN_DOMAINS_EXCLUSIVE = 30
+        private const val LEADERBOARD_MIN_DOMAINS_EXCLUSIVE = 30
     }
 }
 

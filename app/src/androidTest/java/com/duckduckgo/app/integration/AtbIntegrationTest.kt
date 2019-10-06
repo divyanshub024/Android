@@ -16,8 +16,8 @@
 
 package com.duckduckgo.app.integration
 
-import android.support.test.InstrumentationRegistry
-import android.support.test.filters.LargeTest
+import androidx.test.filters.LargeTest
+import androidx.test.platform.app.InstrumentationRegistry
 import com.duckduckgo.app.InstantSchedulersRule
 import com.duckduckgo.app.getDaggerComponent
 import com.duckduckgo.app.statistics.Variant
@@ -27,8 +27,8 @@ import com.duckduckgo.app.statistics.api.StatisticsService
 import com.duckduckgo.app.statistics.model.Atb
 import com.duckduckgo.app.statistics.store.StatisticsDataStore
 import com.duckduckgo.app.statistics.store.StatisticsSharedPreferences
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.whenever
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.whenever
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -54,33 +54,48 @@ class AtbIntegrationTest {
     @Before
     fun before() {
         mockVariantManager = mock()
-        statisticsStore = StatisticsSharedPreferences(InstrumentationRegistry.getTargetContext())
+        statisticsStore = StatisticsSharedPreferences(InstrumentationRegistry.getInstrumentation().targetContext)
         statisticsStore.clearAtb()
 
-        whenever(mockVariantManager.getVariant()).thenReturn(Variant("ma", 100.0))
+        whenever(mockVariantManager.getVariant()).thenReturn(Variant("ma", 100.0, filterBy = { true }))
         service = getDaggerComponent().retrofit().create(StatisticsService::class.java)
         testee = StatisticsRequester(statisticsStore, service, mockVariantManager)
     }
 
     @Test
-    fun whenNoStatisticsStoredThenAtbInitializationSuccessfullyStoresAtbAndRetentionAtb() {
+    fun whenNoStatisticsStoredThenAtbInitializationSuccessfullyStoresAtb() {
         testee.initializeAtb()
         assertTrue(statisticsStore.hasInstallationStatistics)
         val atb = statisticsStore.atb
-        val retentionAtb = statisticsStore.retentionAtb
         assertNotNull(atb)
-        assertNotNull(retentionAtb)
-        assertEquals(atb?.version, retentionAtb)
         assertAtbExpectedFormatted(atb!!.version)
     }
 
     @Test
-    fun whenStatisticsAlreadyStoredThenRefreshSuccessfullyUpdatesRetentionAtbOnly() {
+    fun whenStatisticsAlreadyStoredThenRefreshSearchSuccessfullyUpdatesSearchRetentionAtbOnly() {
         statisticsStore.saveAtb(Atb("v100-1"))
-        testee.refreshRetentionAtb()
         assertTrue(statisticsStore.hasInstallationStatistics)
+
+        testee.refreshSearchRetentionAtb()
         val atb = statisticsStore.atb
-        val retentionAtb = statisticsStore.retentionAtb
+        val retentionAtb = statisticsStore.searchRetentionAtb
+        assertNotNull(atb)
+        assertNotNull(retentionAtb)
+
+        assertEquals("v100-1", atb!!.version)
+        assertNotEquals(atb.version, retentionAtb)
+        assertAtbExpectedFormatted(atb.version)
+        assertAtbExpectedFormatted(retentionAtb!!)
+    }
+
+    @Test
+    fun whenStatisticsAlreadyStoredThenRefreshAppSuccessfullyUpdatesAppRetentionAtbOnly() {
+        statisticsStore.saveAtb(Atb("v100-1"))
+        assertTrue(statisticsStore.hasInstallationStatistics)
+
+        testee.refreshAppRetentionAtb()
+        val atb = statisticsStore.atb
+        val retentionAtb = statisticsStore.appRetentionAtb
         assertNotNull(atb)
         assertNotNull(retentionAtb)
 

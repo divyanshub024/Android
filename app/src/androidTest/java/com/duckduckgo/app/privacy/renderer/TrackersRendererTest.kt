@@ -16,16 +16,16 @@
 
 package com.duckduckgo.app.privacy.renderer
 
-import android.support.test.InstrumentationRegistry
+import androidx.test.platform.app.InstrumentationRegistry
 import com.duckduckgo.app.browser.R
-import com.duckduckgo.app.privacy.db.NetworkLeaderboardDao.NetworkTally
+import com.duckduckgo.app.privacy.db.NetworkLeaderboardEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TrackersRendererTest {
 
-    private val context = InstrumentationRegistry.getTargetContext()
+    private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val testee = TrackersRenderer()
 
     @Test
@@ -65,45 +65,27 @@ class TrackersRendererTest {
     }
 
     @Test
-    fun whenTotalDomainsIsZeroThenPercentageIsBlank() {
-        val text = testee.networkPercentage(NetworkTally("", 10), 0)
+    fun whenSitesVisitedIsZeroThenPercentageIsBlank() {
+        val text = testee.networkPercentage(NetworkLeaderboardEntry("", 10), 0)
         assertEquals("", text)
     }
 
     @Test
-    fun whenDomainCountIsZeroThenPercentageIsBlank() {
-        val text = testee.networkPercentage(NetworkTally("", 0), 10)
+    fun whenNetworkCountIsZeroThenPercentageIsBlank() {
+        val text = testee.networkPercentage(NetworkLeaderboardEntry("", 0), 10)
         assertEquals("", text)
     }
 
     @Test
     fun whenPortionIsRecurringFractionThenPercentageIsRoundNumber() {
-        val text = testee.networkPercentage(NetworkTally("", 10), 30)
+        val text = testee.networkPercentage(NetworkLeaderboardEntry("", 10), 30)
         assertEquals("33%", text)
     }
 
     @Test
     fun whenPortionIsHalfThenPercentageIs50Percent() {
-        val text = testee.networkPercentage(NetworkTally("", 10), 20)
+        val text = testee.networkPercentage(NetworkLeaderboardEntry("", 10), 20)
         assertEquals("50%", text)
-    }
-
-    @Test
-    fun whenNoTrackerNetworksThenNetworksTextShowsZeroBlocked() {
-        val text = testee.networksText(context, 0, true)
-        assertEquals("0 Tracker Networks Blocked", text)
-    }
-
-    @Test
-    fun whenTenTrackerNetworksAndAllBlockedThenNetworksTextShowsTenBlocked() {
-        val text = testee.networksText(context, 10, true)
-        assertEquals("10 Tracker Networks Blocked", text)
-    }
-
-    @Test
-    fun whenTenTrackersNetworksAndNotAllBlockedThenNetworksTextShowsTenFound() {
-        val text = testee.networksText(context, 10, false)
-        assertEquals("10 Tracker Networks Found", text)
     }
 
     @Test

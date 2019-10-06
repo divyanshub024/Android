@@ -18,18 +18,14 @@ package com.duckduckgo.app.global.view
 
 import android.content.Context
 import android.os.Bundle
-import android.support.design.widget.BottomSheetDialog
 import android.view.View
 import com.duckduckgo.app.browser.R
-import com.duckduckgo.app.statistics.pixels.Pixel
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import kotlinx.android.synthetic.main.sheet_fire_clear_data.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
-class FireDialog(
-    context: Context,
-    private val pixel: Pixel,
-    private val clearPersonalDataAction: ClearPersonalDataAction
-) :
-    BottomSheetDialog(context) {
+class FireDialog(context: Context, private val clearPersonalDataAction: ClearPersonalDataAction) : BottomSheetDialog(context) {
 
     var clearStarted: (() -> Unit) = {}
     var clearComplete: (() -> Unit) = {}
@@ -43,9 +39,14 @@ class FireDialog(
         super.onCreate(savedInstanceState)
 
         clearAllOption.setOnClickListener {
-            clearStarted()
-            clearPersonalDataAction.clear()
             dismiss()
+            clearStarted()
+
+            GlobalScope.launch {
+                clearPersonalDataAction.clearTabsAndAllDataAsync(appInForeground = true, shouldFireDataClearPixel = true)
+                clearPersonalDataAction.setAppUsedSinceLastClearFlag(false)
+                clearPersonalDataAction.killAndRestartProcess()
+            }
         }
 
         cancelOption.setOnClickListener {

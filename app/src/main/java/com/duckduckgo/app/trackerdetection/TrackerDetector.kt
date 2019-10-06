@@ -46,8 +46,7 @@ class TrackerDetectorImpl(
 
     override fun evaluate(url: String, documentUrl: String, resourceType: ResourceType): TrackingEvent? {
 
-        val whitelisted = clients.any { it.name.type == Client.ClientType.WHITELIST && it.matches(url, documentUrl, resourceType) }
-        if (whitelisted) {
+        if (whitelisted(url, documentUrl, resourceType)) {
             Timber.v("$documentUrl resource $url is whitelisted")
             return null
         }
@@ -57,7 +56,13 @@ class TrackerDetectorImpl(
             return null
         }
 
-        val matches = clients.any { it.name.type == Client.ClientType.BLOCKING && it.matches(url, documentUrl, resourceType) }
+        val matches = clients.any {
+            it.name.type == Client.ClientType.BLOCKING && it.matches(
+                url,
+                documentUrl,
+                resourceType
+            )
+        }
         if (matches) {
             Timber.v("$documentUrl resource $url WAS identified as a tracker")
             return TrackingEvent(documentUrl, url, networkTrackers.network(url), settings.privacyOn)
@@ -67,11 +72,18 @@ class TrackerDetectorImpl(
         return null
     }
 
+    private fun whitelisted(url: String, documentUrl: String, resourceType: ResourceType): Boolean {
+        return clients.any { it.name.type == Client.ClientType.WHITELIST && it.matches(url, documentUrl, resourceType) }
+    }
+
     private fun firstParty(firstUrl: String, secondUrl: String): Boolean =
         sameOrSubdomain(firstUrl, secondUrl) || sameOrSubdomain(secondUrl, firstUrl) || sameNetworkName(firstUrl, secondUrl)
 
-    private fun sameNetworkName(firstUrl: String, secondUrl: String): Boolean =
-        networkTrackers.network(firstUrl) != null && networkTrackers.network(firstUrl)?.name == networkTrackers.network(secondUrl)?.name
+    private fun sameNetworkName(firstUrl: String, secondUrl: String): Boolean {
+        val firstNetwork = networkTrackers.network(firstUrl) ?: return false
+        val secondNetwork = networkTrackers.network(secondUrl) ?: return false
+        return firstNetwork.name == secondNetwork.name
+    }
 
 
     val clientCount get() = clients.count()

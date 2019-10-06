@@ -20,16 +20,18 @@ import android.net.Uri
 import android.view.View
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import com.duckduckgo.app.browser.model.BasicAuthenticationRequest
 import com.duckduckgo.app.trackerdetection.model.TrackingEvent
 
 interface WebViewClientListener {
-    fun loadingStarted()
-    fun loadingFinished(url: String? = null, canGoBack: Boolean, canGoForward: Boolean)
-    fun progressChanged(newProgress: Int, canGoBack: Boolean, canGoForward: Boolean)
-    fun titleReceived(title: String)
-    fun urlChanged(url: String?)
+
+    fun navigationStateChanged(newWebNavigationState: WebNavigationState)
+    fun pageRefreshed(refreshedUrl: String)
+    fun progressChanged(newProgress: Int)
+
+    fun titleReceived(newTitle: String)
     fun trackerDetected(event: TrackingEvent)
-    fun pageHasHttpResources(page: String?)
+    fun pageHasHttpResources(page: String)
 
     fun sendEmailRequested(emailAddress: String)
     fun sendSmsRequested(telephoneNumber: String)
@@ -38,4 +40,6 @@ interface WebViewClientListener {
     fun exitFullScreen()
     fun showFileChooser(filePathCallback: ValueCallback<Array<Uri>>, fileChooserParams: WebChromeClient.FileChooserParams)
     fun externalAppLinkClicked(appLink: SpecialUrlDetector.UrlType.IntentType)
+
+    fun requiresAuthentication(request: BasicAuthenticationRequest)
 }

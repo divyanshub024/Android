@@ -18,24 +18,60 @@ package com.duckduckgo.app.browser
 
 import android.content.Context
 import android.os.Build
-import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewDatabase
 import com.duckduckgo.app.browser.session.WebViewSessionStorage
+import com.duckduckgo.app.fire.DuckDuckGoCookieManager
+import com.duckduckgo.app.global.file.FileDeleter
+import java.io.File
 import javax.inject.Inject
 
-class WebDataManager @Inject constructor(private val host: String, private val webViewSessionStorage: WebViewSessionStorage) {
+interface WebDataManager {
+    suspend fun clearData(webView: WebView, webStorage: WebStorage, webViewDatabase: WebViewDatabase)
+    fun clearWebViewSessions()
+}
 
-    fun clearData(webView: WebView, webStorage: WebStorage, context: Context) {
+class WebViewDataManager @Inject constructor(
+    private val context: Context,
+    private val webViewSessionStorage: WebViewSessionStorage,
+    private val cookieManager: DuckDuckGoCookieManager,
+    private val fileDeleter: FileDeleter
+) : WebDataManager {
+
+    override suspend fun clearData(webView: WebView, webStorage: WebStorage, webViewDatabase: WebViewDatabase) {
+        clearWebViewCache(webView)
+        clearHistory(webView)
+        clearWebStorage(webStorage)
+        clearFormData(webView, webViewDatabase)
+        clearAuthentication(webViewDatabase)
+        clearExternalCookies()
+        clearWebViewDirectory(exclusions = WEBVIEW_FILES_EXCLUDED_FROM_DELETION)
+    }
+
+    private fun clearWebViewCache(webView: WebView) {
         webView.clearCache(true)
+    }
+
+    private fun clearHistory(webView: WebView) {
         webView.clearHistory()
+    }
+
+    private fun clearWebStorage(webStorage: WebStorage) {
         webStorage.deleteAllData()
+    }
+
+    private fun clearFormData(webView: WebView, webViewDatabase: WebViewDatabase) {
         webView.clearFormData()
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            clearFormData(WebViewDatabase.getInstance(context))
+            clearFormData(webViewDatabase)
         }
+    }
+
+    private suspend fun clearWebViewDirectory(exclusions: List<String>) {
+        val webViewDataDirectory = File(context.applicationInfo.dataDir, WEBVIEW_DATA_DIRECTORY_NAME)
+        fileDeleter.deleteContents(webViewDataDirectory, exclusions)
     }
 
     /**
@@ -46,17 +82,23 @@ class WebDataManager @Inject constructor(private val host: String, private val w
         webViewDatabase.clearFormData()
     }
 
-    fun clearExternalCookies(cookieManager: CookieManager, clearAllCallback: (() -> Unit)) {
-
-        val ddgCookie = cookieManager.getCookie(host)?.split(";")
-
-        cookieManager.removeAllCookies {
-            ddgCookie?.forEach { cookieManager.setCookie(host, it.trim()) }
-            clearAllCallback()
-        }
+    private fun clearAuthentication(webViewDatabase: WebViewDatabase) {
+        webViewDatabase.clearHttpAuthUsernamePassword()
     }
 
-    fun clearWebViewSessions() {
+    private suspend fun clearExternalCookies() {
+        cookieManager.removeExternalCookies()
+    }
+
+    override fun clearWebViewSessions() {
         webViewSessionStorage.deleteAllSessions()
+    }
+
+    companion object {
+        private const val WEBVIEW_DATA_DIRECTORY_NAME = "app_webview"
+
+        private val WEBVIEW_FILES_EXCLUDED_FROM_DELETION = listOf(
+            "Cookies"
+        )
     }
 }

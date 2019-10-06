@@ -16,21 +16,23 @@
 
 package com.duckduckgo.app.privacy.ui
 
-import android.arch.core.executor.testing.InstantTaskExecutorRule
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.Observer
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import com.duckduckgo.app.global.model.Site
 import com.duckduckgo.app.privacy.db.NetworkLeaderboardDao
-import com.duckduckgo.app.privacy.db.NetworkLeaderboardDao.NetworkTally
+import com.duckduckgo.app.privacy.db.NetworkLeaderboardEntry
 import com.duckduckgo.app.privacy.model.HttpsStatus
 import com.duckduckgo.app.privacy.model.PrivacyGrade
-import com.duckduckgo.app.privacy.model.TermsOfService
+import com.duckduckgo.app.privacy.model.PrivacyPractices
+import com.duckduckgo.app.privacy.model.PrivacyPractices.Summary.GOOD
+import com.duckduckgo.app.privacy.model.PrivacyPractices.Summary.UNKNOWN
 import com.duckduckgo.app.privacy.store.PrivacySettingsStore
 import com.duckduckgo.app.statistics.pixels.Pixel
 import com.duckduckgo.app.statistics.pixels.Pixel.PixelName.PRIVACY_DASHBOARD_OPENED
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.verify
-import com.nhaarman.mockito_kotlin.whenever
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.verify
+import com.nhaarman.mockitokotlin2.whenever
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -45,23 +47,23 @@ class PrivacyDashboardViewModelTest {
 
     private var viewStateObserver: Observer<PrivacyDashboardViewModel.ViewState> = mock()
     private var settingStore: PrivacySettingsStore = mock()
-    private var networkLeaderboard: NetworkLeaderboardDao = mock()
-    private var networkTallyLiveData: LiveData<List<NetworkTally>> = mock()
-    private var domainsVisitedLiveData: LiveData<Int> = mock()
+    private var networkLeaderboardDao: NetworkLeaderboardDao = mock()
+    private var networkLeaderboardLiveData: LiveData<List<NetworkLeaderboardEntry>> = mock()
+    private var sitesVisitedLiveData: LiveData<Int> = mock()
     private var mockPixel: Pixel = mock()
 
     private val testee: PrivacyDashboardViewModel by lazy {
-        val model = PrivacyDashboardViewModel(settingStore, networkLeaderboard, mockPixel)
+        val model = PrivacyDashboardViewModel(settingStore, networkLeaderboardDao, mockPixel)
         model.viewState.observeForever(viewStateObserver)
         model
     }
 
     @Before
     fun before() {
-        whenever(domainsVisitedLiveData.value).thenReturn(0)
-        whenever(networkTallyLiveData.value).thenReturn(emptyList())
-        whenever(networkLeaderboard.domainsVisitedCount()).thenReturn(domainsVisitedLiveData)
-        whenever(networkLeaderboard.trackerNetworkTally()).thenReturn(networkTallyLiveData)
+        whenever(sitesVisitedLiveData.value).thenReturn(0)
+        whenever(networkLeaderboardLiveData.value).thenReturn(emptyList())
+        whenever(networkLeaderboardDao.sitesVisited()).thenReturn(sitesVisitedLiveData)
+        whenever(networkLeaderboardDao.trackerNetworkLeaderboard()).thenReturn(networkLeaderboardLiveData)
     }
 
     @After
@@ -83,9 +85,8 @@ class PrivacyDashboardViewModelTest {
         assertEquals(PrivacyGrade.UNKNOWN, viewState.beforeGrade)
         assertEquals(PrivacyGrade.UNKNOWN, viewState.afterGrade)
         assertEquals(HttpsStatus.SECURE, viewState.httpsStatus)
-        assertEquals(0, viewState.networkCount)
         assertTrue(viewState.allTrackersBlocked)
-        assertEquals(TermsOfService.Practices.UNKNOWN, testee.viewState.value!!.practices)
+        assertEquals(UNKNOWN, testee.viewState.value!!.practices)
     }
 
     @Test
@@ -117,8 +118,8 @@ class PrivacyDashboardViewModelTest {
     }
 
     @Test
-    fun whenSiteHasTrackersThenViewModelGradesAreUpdated() {
-        val site = site(allTrackersBlocked = true, trackerCount = 1000)
+    fun whenSiteGradesAreUpdatedThenViewModelGradesAreUpdated() {
+        val site = site(grade = PrivacyGrade.D, improvedGrade = PrivacyGrade.B)
         testee.onSiteChanged(site)
         assertEquals(PrivacyGrade.D, testee.viewState.value?.beforeGrade)
         assertEquals(PrivacyGrade.B, testee.viewState.value?.afterGrade)
@@ -128,12 +129,6 @@ class PrivacyDashboardViewModelTest {
     fun whenSiteHttpsStatusIsUpdatedThenViewModelIsUpdated() {
         testee.onSiteChanged(site(https = HttpsStatus.MIXED))
         assertEquals(HttpsStatus.MIXED, testee.viewState.value?.httpsStatus)
-    }
-
-    @Test
-    fun whenNetworkCountIsUpdatedThenCountIsUpdatedInViewModel() {
-        testee.onSiteChanged(site(networkCount = 10))
-        assertEquals(10, testee.viewState.value!!.networkCount)
     }
 
     @Test
@@ -149,75 +144,83 @@ class PrivacyDashboardViewModelTest {
     }
 
     @Test
-    fun whenTermsAreUpdatedThenPracticesAreUpdatedInViewModel() {
-        val terms = TermsOfService(classification = "A", goodPrivacyTerms = listOf("good"))
-        testee.onSiteChanged(site(terms = terms))
-        assertEquals(TermsOfService.Practices.GOOD, testee.viewState.value!!.practices)
+    fun whenPrivacyPracticesAreUpdatedThenPracticesAreUpdatedInViewModel() {
+        val practices = PrivacyPractices.Practices(0, GOOD, emptyList(), emptyList())
+        testee.onSiteChanged(site(privacyPractices = practices))
+        assertEquals(GOOD, testee.viewState.value!!.practices)
     }
 
     @Test
-    fun whenNetworkCountIsAtLeastThreeAndTotalDomainsIsOverThirtyThenShowSummaryIsTrue() {
-        val first = NetworkTally("Network1", 5)
-        val second = NetworkTally("Network2", 3)
-        val third = NetworkTally("Network3", 3)
-        testee.onTrackerNetworkTallyChanged(listOf(first, second, third))
-        testee.onDomainsVisitedChanged(31)
-        assertTrue(testee.viewState.value!!.showTrackerNetworkLeaderboard)
+    fun whenNetworkCountIsThreeAndTotalSitesIsThirtyOneThenShowSummaryIsTrue() {
+        val first = NetworkLeaderboardEntry("Network1", 5)
+        val second = NetworkLeaderboardEntry("Network2", 3)
+        val third = NetworkLeaderboardEntry("Network3", 3)
+        testee.onTrackerNetworkEntriesChanged(listOf(first, second, third))
+        testee.onSitesVisitedChanged(31)
+        assertTrue(testee.viewState.value!!.shouldShowTrackerNetworkLeaderboard)
     }
 
     @Test
-    fun whenNetworkCountIsLessThanThreeThenShowSummaryIsFalse() {
-        val first = NetworkTally("Network1", 5)
-        val second = NetworkTally("Network2", 3)
-        testee.onTrackerNetworkTallyChanged(listOf(first, second))
-        testee.onDomainsVisitedChanged(31)
-        assertFalse(testee.viewState.value!!.showTrackerNetworkLeaderboard)
+    fun whenNetworkCountIsTwoAndTotalSitesIsThirtyOneThenShowSummaryIsFalse() {
+        val first = NetworkLeaderboardEntry("Network1", 5)
+        val second = NetworkLeaderboardEntry("Network2", 3)
+        testee.onTrackerNetworkEntriesChanged(listOf(first, second))
+        testee.onSitesVisitedChanged(31)
+        assertFalse(testee.viewState.value!!.shouldShowTrackerNetworkLeaderboard)
     }
 
     @Test
-    fun whenDomainsIsNotOverThirtyThenShowSummaryIsFalse() {
-        val first = NetworkTally("Network1", 5)
-        val second = NetworkTally("Network2", 3)
-        val third = NetworkTally("Network3", 3)
-        testee.onTrackerNetworkTallyChanged(listOf(first, second, third))
-        testee.onDomainsVisitedChanged(30)
-        assertFalse(testee.viewState.value!!.showTrackerNetworkLeaderboard)
+    fun whenNetworkCountIsTwoAndTotalSitesIsThirtyThenShowSummaryIsFalse() {
+        val first = NetworkLeaderboardEntry("Network1", 5)
+        val second = NetworkLeaderboardEntry("Network2", 3)
+        testee.onTrackerNetworkEntriesChanged(listOf(first, second))
+        testee.onSitesVisitedChanged(30)
+        assertFalse(testee.viewState.value!!.shouldShowTrackerNetworkLeaderboard)
+    }
+
+    @Test
+    fun whenNetworkCountIsThreeAndTotalSitesIsThirtyThenShowSummaryIsFalse() {
+        val first = NetworkLeaderboardEntry("Network1", 5)
+        val second = NetworkLeaderboardEntry("Network2", 3)
+        val third = NetworkLeaderboardEntry("Network3", 3)
+        testee.onTrackerNetworkEntriesChanged(listOf(first, second, third))
+        testee.onSitesVisitedChanged(30)
+        assertFalse(testee.viewState.value!!.shouldShowTrackerNetworkLeaderboard)
     }
 
     @Test
     fun whenNetworkLeaderboardDataAvailableThenViewStateUpdated() {
-        val first = NetworkTally("Network1", 5)
-        val second = NetworkTally("Network2", 3)
-        testee.onTrackerNetworkTallyChanged(listOf(first, second))
+        val first = NetworkLeaderboardEntry("Network1", 5)
+        val second = NetworkLeaderboardEntry("Network2", 3)
+        testee.onTrackerNetworkEntriesChanged(listOf(first, second))
 
         val viewState = testee.viewState.value!!
-        assertEquals(first, viewState.trackerNetworkTally[0])
-        assertEquals(second, viewState.trackerNetworkTally[1])
+        assertEquals(first, viewState.trackerNetworkEntries[0])
+        assertEquals(second, viewState.trackerNetworkEntries[1])
     }
 
     @Test
     fun whenNoNetworkLeaderboardDataThenDefaultValuesAreUsed() {
-        testee.onTrackerNetworkTallyChanged(emptyList())
+        testee.onTrackerNetworkEntriesChanged(emptyList())
         val viewState = testee.viewState.value!!
-        assertEquals(emptyList<NetworkTally>(), viewState.trackerNetworkTally)
-        assertFalse(viewState.showTrackerNetworkLeaderboard)
+        assertEquals(emptyList<NetworkLeaderboardEntry>(), viewState.trackerNetworkEntries)
+        assertFalse(viewState.shouldShowTrackerNetworkLeaderboard)
     }
 
     private fun site(
         https: HttpsStatus = HttpsStatus.SECURE,
         trackerCount: Int = 0,
-        networkCount: Int = 0,
-        hasTrackerFromMajorNetwork: Boolean = false,
         allTrackersBlocked: Boolean = true,
-        terms: TermsOfService = TermsOfService()
+        privacyPractices: PrivacyPractices.Practices = PrivacyPractices.UNKNOWN,
+        grade: PrivacyGrade = PrivacyGrade.UNKNOWN,
+        improvedGrade: PrivacyGrade = PrivacyGrade.UNKNOWN
     ): Site {
         val site: Site = mock()
         whenever(site.https).thenReturn(https)
         whenever(site.trackerCount).thenReturn(trackerCount)
-        whenever(site.networkCount).thenReturn(networkCount)
-        whenever(site.hasTrackerFromMajorNetwork).thenReturn(hasTrackerFromMajorNetwork)
         whenever(site.allTrackersBlocked).thenReturn(allTrackersBlocked)
-        whenever(site.termsOfService).thenReturn(terms)
+        whenever(site.privacyPractices).thenReturn(privacyPractices)
+        whenever(site.calculateGrades()).thenReturn(Site.SiteGrades(grade, improvedGrade))
         return site
     }
 

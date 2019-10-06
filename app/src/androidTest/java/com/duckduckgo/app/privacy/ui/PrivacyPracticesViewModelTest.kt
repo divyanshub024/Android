@@ -16,13 +16,15 @@
 
 package com.duckduckgo.app.privacy.ui
 
-import android.arch.core.executor.testing.InstantTaskExecutorRule
-import android.arch.lifecycle.Observer
 import android.net.Uri
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.Observer
 import com.duckduckgo.app.global.model.Site
-import com.duckduckgo.app.privacy.model.TermsOfService
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.whenever
+import com.duckduckgo.app.privacy.model.PrivacyPractices
+import com.duckduckgo.app.privacy.model.PrivacyPractices.Summary.POOR
+import com.duckduckgo.app.privacy.model.PrivacyPractices.Summary.UNKNOWN
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.whenever
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -52,7 +54,7 @@ class PrivacyPracticesViewModelTest {
     fun whenNoDataThenDefaultValuesAreUsed() {
         val viewState = testee.viewState.value!!
         assertEquals("", viewState.domain)
-        assertEquals(TermsOfService.Practices.UNKNOWN, viewState.practices)
+        assertEquals(UNKNOWN, viewState.practices)
         assertEquals(0, viewState.goodTerms.size)
         assertEquals(0, viewState.badTerms.size)
     }
@@ -64,20 +66,21 @@ class PrivacyPracticesViewModelTest {
     }
 
     @Test
-    fun whenTermsAreUpdatedThenViewModelPracticesAndTermsListsAreUpdated() {
-        val terms = TermsOfService(classification = "C", goodPrivacyTerms = listOf("good", "good"), badPrivacyTerms = listOf("good"))
-        testee.onSiteChanged(site(terms = terms))
+    fun whenPrivacyPracticesAreUpdatedThenViewModelPracticesAndTermsListsAreUpdated() {
+        val privacyPractices = PrivacyPractices.Practices(0, POOR, listOf("good", "also good"), listOf("bad"))
+
+        testee.onSiteChanged(site(privacyPractices = privacyPractices))
         val viewState = testee.viewState.value!!
-        assertEquals(TermsOfService.Practices.POOR, viewState.practices)
+        assertEquals(POOR, viewState.practices)
         assertEquals(2, viewState.goodTerms.size)
         assertEquals(1, viewState.badTerms.size)
     }
 
-    private fun site(url: String = "", terms: TermsOfService = TermsOfService()): Site {
+    private fun site(url: String = "", privacyPractices: PrivacyPractices.Practices = PrivacyPractices.UNKNOWN): Site {
         val site: Site = mock()
         whenever(site.url).thenReturn(url)
         whenever(site.uri).thenReturn(Uri.parse(url))
-        whenever(site.termsOfService).thenReturn(terms)
+        whenever(site.privacyPractices).thenReturn(privacyPractices)
         return site
     }
 

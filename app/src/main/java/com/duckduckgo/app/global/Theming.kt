@@ -16,23 +16,49 @@
 
 package com.duckduckgo.app.global
 
-import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.support.v4.content.LocalBroadcastManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.duckduckgo.app.browser.R
-import com.duckduckgo.app.global.ThemingConstants.BROADCAST_THEME_CHANGED
+import com.duckduckgo.app.global.Theming.Constants.BROADCAST_THEME_CHANGED
+import com.duckduckgo.app.global.Theming.Constants.THEME_MAP
 import com.duckduckgo.app.settings.db.SettingsDataStore
 
 
-fun DuckDuckGoActivity.applyTheme(settingsDataStore: SettingsDataStore): BroadcastReceiver? {
-    if (!isThemeConfigurable()) {
-        return null
+enum class DuckDuckGoTheme {
+    DARK,
+    LIGHT;
+}
+
+object Theming {
+
+    fun initializeTheme(settingsDataStore: SettingsDataStore) {
+        if (settingsDataStore.theme == null) {
+            settingsDataStore.theme = DuckDuckGoTheme.DARK
+        }
     }
-    setTheme(themeId(settingsDataStore))
+
+    object Constants {
+
+        const val BROADCAST_THEME_CHANGED = "BROADCAST_THEME_CHANGED"
+
+        val THEME_MAP = mapOf(
+            Pair(R.style.AppTheme, DuckDuckGoTheme.LIGHT) to R.style.AppTheme_Light,
+            Pair(R.style.AppTheme, DuckDuckGoTheme.DARK) to R.style.AppTheme_Dark
+        )
+    }
+}
+
+fun DuckDuckGoActivity.applyTheme(): BroadcastReceiver? {
+    val themeId = THEME_MAP[Pair(manifestThemeId(), settingsDataStore.theme)] ?: return null
+    setTheme(themeId)
     return registerForThemeChangeBroadcast()
+}
+
+fun DuckDuckGoActivity.appTheme(): DuckDuckGoTheme? {
+    return settingsDataStore.theme
 }
 
 private fun DuckDuckGoActivity.registerForThemeChangeBroadcast(): BroadcastReceiver {
@@ -51,21 +77,6 @@ fun DuckDuckGoActivity.sendThemeChangedBroadcast() {
     manager.sendBroadcast(Intent(BROADCAST_THEME_CHANGED))
 }
 
-private fun themeId(settingsDataStore: SettingsDataStore): Int {
-    return when (settingsDataStore.lightThemeEnabled) {
-        true -> R.style.AppTheme_Light
-        false -> R.style.AppTheme_Dark
-    }
-}
-
-private fun DuckDuckGoActivity.isThemeConfigurable(): Boolean {
-    return manifestThemeId() == R.style.AppTheme_Dark || manifestThemeId() == R.style.AppTheme_Light
-}
-
 private fun DuckDuckGoActivity.manifestThemeId(): Int {
     return packageManager.getActivityInfo(componentName, 0).themeResource
-}
-
-object ThemingConstants {
-    const val BROADCAST_THEME_CHANGED = "BROADCAST_THEME_CHANGED"
 }

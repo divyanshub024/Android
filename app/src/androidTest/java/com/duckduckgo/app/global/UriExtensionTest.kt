@@ -60,36 +60,6 @@ class UriExtensionTest {
     }
 
     @Test
-    fun whenUriContainsDomainThenSimpleUrlIsEqual() {
-        val url = "http://example.com"
-        assertEquals(url, Uri.parse(url).simpleUrl)
-    }
-
-    @Test
-    fun whenUriCotnainsSubdomainThenSimpleUrlIsEqual() {
-        val url = "http://subdomain.example.com"
-        assertEquals(url, Uri.parse(url).simpleUrl)
-    }
-
-    @Test
-    fun whenUriContainsPathThenSimpleUrlIsEqual() {
-        val url = "http://example.com/about"
-        assertEquals(url, Uri.parse(url).simpleUrl)
-    }
-
-    @Test
-    fun whenUriContainsUsernameThenSimpleUrlOmitsThis() {
-        val url = "http://user@example.com"
-        assertEquals("http://example.com", Uri.parse(url).simpleUrl)
-    }
-
-    @Test
-    fun whenUriContainsParametersThenSimpleUrlOmitsThese() {
-        val url = "http://example.com?search=54"
-        assertEquals("http://example.com", Uri.parse(url).simpleUrl)
-    }
-
-    @Test
     fun whenUriIsHttpIrrespectiveOfCaseThenIsHttpIsTrue() {
         assertTrue(Uri.parse("http://example.com").isHttp)
         assertTrue(Uri.parse("HTTP://example.com").isHttp)
@@ -117,6 +87,34 @@ class UriExtensionTest {
     }
 
     @Test
+    fun whenUriIsHttpsAndOtherIsHttpButOtherwiseIdenticalThenIsHttpsVersionOfOtherIsTrue() {
+        val uri = Uri.parse("https://example.com")
+        val other = Uri.parse("http://example.com")
+        assertTrue(uri.isHttpsVersionOfUri(other))
+    }
+
+    @Test
+    fun whenUriIsHttpsAndOtherIsHttpButNotOtherwiseIdenticalThenIsHttpsVersionOfOtherIsFalse() {
+        val uri = Uri.parse("https://example.com")
+        val other = Uri.parse("http://example.com/path")
+        assertFalse(uri.isHttpsVersionOfUri(other))
+    }
+
+    @Test
+    fun whenUriIsHttpThenIsHttpsVersionOfOtherIsFalse() {
+        val uri = Uri.parse("http://example.com")
+        val other = Uri.parse("http://example.com")
+        assertFalse(uri.isHttpsVersionOfUri(other))
+    }
+
+    @Test
+    fun whenUriIsHttpsAndOtherIsHttpsThenIsHttpsVersionOfOtherIsFalse() {
+        val uri = Uri.parse("https://example.com")
+        val other = Uri.parse("https://example.com")
+        assertFalse(uri.isHttpsVersionOfUri(other))
+    }
+
+    @Test
     fun whenUriIsMalformedThenIsHtpsIsFalse() {
         assertFalse(Uri.parse("[example com]").isHttps)
     }
@@ -138,6 +136,11 @@ class UriExtensionTest {
     }
 
     @Test
+    fun whenUrlStartsMobileDotThenIdentifiedAsMobileSite() {
+        assertTrue(Uri.parse("https://mobile.example.com").isMobileSite)
+    }
+
+    @Test
     fun whenUrlSubdomainEndsWithMThenNotIdentifiedAsMobileSite() {
         assertFalse(Uri.parse("https://adam.example.com").isMobileSite)
     }
@@ -148,8 +151,20 @@ class UriExtensionTest {
     }
 
     @Test
-    fun whenConvertingMobileSiteToDesktopSiteThenMobilePrefixStripped() {
+    fun whenConvertingMobileSiteToDesktopSiteThenShortMobilePrefixStripped() {
         val converted = Uri.parse("https://m.example.com").toDesktopUri()
+        assertEquals("https://example.com", converted.toString())
+    }
+
+    @Test
+    fun whenConvertingMobileSiteToDesktopSiteThenLongMobilePrefixStripped() {
+        val converted = Uri.parse("https://mobile.example.com").toDesktopUri()
+        assertEquals("https://example.com", converted.toString())
+    }
+
+    @Test
+    fun whenConvertingMobileSiteToDesktopSiteThenMultipleMobilePrefixesStripped() {
+        val converted = Uri.parse("https://mobile.m.example.com").toDesktopUri()
         assertEquals("https://example.com", converted.toString())
     }
 

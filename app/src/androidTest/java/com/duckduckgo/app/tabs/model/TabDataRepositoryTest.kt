@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
+@file:Suppress("RemoveExplicitTypeArguments")
+
 package com.duckduckgo.app.tabs.model
 
-import android.arch.core.executor.testing.InstantTaskExecutorRule
-import android.arch.lifecycle.MutableLiveData
-import android.support.test.annotation.UiThreadTest
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.MutableLiveData
+import androidx.test.annotation.UiThreadTest
 import com.duckduckgo.app.InstantSchedulersRule
+import com.duckduckgo.app.browser.tabpreview.WebViewPreviewPersister
 import com.duckduckgo.app.global.model.Site
 import com.duckduckgo.app.global.model.SiteFactory
-import com.duckduckgo.app.privacy.store.TermsOfServiceStore
+import com.duckduckgo.app.privacy.model.PrivacyPractices
+import com.duckduckgo.app.privacy.store.PrevalenceStore
 import com.duckduckgo.app.tabs.db.TabsDao
 import com.duckduckgo.app.trackerdetection.model.TrackerNetworks
-import com.nhaarman.mockito_kotlin.*
+import com.nhaarman.mockitokotlin2.*
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
@@ -47,7 +52,16 @@ class TabDataRepositoryTest {
     private lateinit var mockDao: TabsDao
 
     @Mock
-    private lateinit var mockTermsOfServiceStore: TermsOfServiceStore
+    private lateinit var mockPrivacyPractices: PrivacyPractices
+
+    @Mock
+    private lateinit var mockPrevalenceStore: PrevalenceStore
+
+    @Mock
+    private lateinit var mockTrackerNetworks: TrackerNetworks
+
+    @Mock
+    private lateinit var mockWebViewPreviewPersister: WebViewPreviewPersister
 
     private lateinit var testee: TabDataRepository
 
@@ -55,22 +69,28 @@ class TabDataRepositoryTest {
     @Before
     fun before() {
         MockitoAnnotations.initMocks(this)
-        testee = TabDataRepository(mockDao, SiteFactory(mockTermsOfServiceStore, TrackerNetworks()))
+        runBlocking {
+            whenever(mockPrivacyPractices.privacyPracticesFor(any())).thenReturn(PrivacyPractices.UNKNOWN)
+            testee = TabDataRepository(
+                mockDao,
+                SiteFactory(mockPrivacyPractices, mockTrackerNetworks, prevalenceStore = mockPrevalenceStore),
+                mockWebViewPreviewPersister
+            )
+        }
     }
 
     @Test
-    fun whenAddNewTabAfterExistingTabWithUrlWithNoHostThenUsesUrlAsTitle() {
+    fun whenAddNewTabAfterExistingTabWithUrlWithNoHostThenUsesUrlAsTitle() = runBlocking<Unit> {
 
         val badUrl = "//bad/url"
         testee.addNewTabAfterExistingTab(badUrl, "tabid")
         val captor = argumentCaptor<TabEntity>()
         verify(mockDao).insertTabAtPosition(captor.capture())
         assertEquals(badUrl, captor.firstValue.url)
-
     }
 
     @Test
-    fun whenTabAddDirectlyThenViewedIsTrue() {
+    fun whenTabAddDirectlyThenViewedIsTrue() = runBlocking<Unit> {
         testee.add("http://www.example.com")
 
         val captor = argumentCaptor<TabEntity>()
@@ -79,17 +99,17 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenTabUpdatedAfterOpenInBackgroundThenViewedIsTrue() {
+    fun whenTabUpdatedAfterOpenInBackgroundThenViewedIsTrue() = runBlocking<Unit> {
         testee.addNewTabAfterExistingTab("http://www.example.com", "tabid")
         testee.update("tabid", null)
 
-        val captor = argumentCaptor<TabEntity>()
-        verify(mockDao).updateTab(captor.capture())
-        assertTrue(captor.firstValue.viewed)
+        val captor = argumentCaptor<Boolean>()
+        verify(mockDao).updateUrlAndTitle(any(), anyOrNull(), anyOrNull(), captor.capture())
+        assertTrue(captor.firstValue)
     }
 
     @Test
-    fun whenNewTabAddedAfterNonExistingTabThenTitleUrlPositionOfNewTabAreCorrectAndTabIsNotViewed() {
+    fun whenNewTabAddedAfterNonExistingTabThenTitleUrlPositionOfNewTabAreCorrectAndTabIsNotViewed() = runBlocking<Unit> {
         testee.addNewTabAfterExistingTab("http://www.example.com", "tabid")
 
         val captor = argumentCaptor<TabEntity>()
@@ -100,7 +120,7 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenNewTabAddedAfterExistingTabThenTitleUrlPositionOfNewTabAreCorrect() {
+    fun whenNewTabAddedAfterExistingTabThenTitleUrlPositionOfNewTabAreCorrect() = runBlocking<Unit> {
         val tab = TabEntity("tabid", position = 3)
         whenever(mockDao.tab(any())).thenReturn(tab)
 
@@ -115,14 +135,14 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenAddCalledThenTabAddedAndSelectedAndBlankSiteDataCreated() {
+    fun whenAddCalledThenTabAddedAndSelectedAndBlankSiteDataCreated() = runBlocking<Unit> {
         val createdId = testee.add()
         verify(mockDao).addAndSelectTab(any())
         assertNotNull(testee.retrieveSiteData(createdId))
     }
 
     @Test
-    fun whenAddCalledWithUrlThenTabAddedAndSelectedAndUrlSiteDataCreated() {
+    fun whenAddCalledWithUrlThenTabAddedAndSelectedAndUrlSiteDataCreated() = runBlocking<Unit> {
         val url = "http://example.com"
         val createdId = testee.add(url)
         verify(mockDao).addAndSelectTab(any())
@@ -131,7 +151,7 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenAddRecordCalledThenTabAddedAndSiteDataAdded() {
+    fun whenAddRecordCalledThenTabAddedAndSiteDataAdded() = runBlocking<Unit> {
         val record = MutableLiveData<Site>()
         testee.add(TAB_ID, record)
         verify(mockDao).addAndSelectTab(any())
@@ -139,7 +159,7 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenDataExistsForTabThenRetrieveReturnsIt() {
+    fun whenDataExistsForTabThenRetrieveReturnsIt() = runBlocking<Unit> {
         val record = MutableLiveData<Site>()
         testee.add(TAB_ID, record)
         assertSame(record, testee.retrieveSiteData(TAB_ID))
@@ -151,7 +171,7 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenTabDeletedThenTabAndDataCleared() {
+    fun whenTabDeletedThenTabAndDataCleared() = runBlocking<Unit> {
         val siteData = MutableLiveData<Site>()
         testee.add(TAB_ID, siteData)
 
@@ -161,7 +181,7 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenAllDeletedThenTabAndDataCleared() {
+    fun whenAllDeletedThenTabAndDataCleared() = runBlocking<Unit> {
         val siteData = MutableLiveData<Site>()
         testee.add(TAB_ID, siteData)
         testee.deleteAll()
@@ -170,7 +190,7 @@ class TabDataRepositoryTest {
     }
 
     @Test
-    fun whenIdSelectedThenCurrentUpdated() {
+    fun whenIdSelectedThenCurrentUpdated() = runBlocking<Unit> {
         testee.select(TAB_ID)
         verify(mockDao).insertTabSelection(eq(TabSelectionEntity(tabId = TAB_ID)))
     }

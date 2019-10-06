@@ -16,33 +16,35 @@
 
 package com.duckduckgo.app.global.db
 
-import android.arch.persistence.db.framework.FrameworkSQLiteOpenHelperFactory
-import android.arch.persistence.room.Room
-import android.arch.persistence.room.testing.MigrationTestHelper
-import android.support.test.InstrumentationRegistry
-import android.support.test.InstrumentationRegistry.getInstrumentation
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.duckduckgo.app.blockingObserve
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 
-
 class AppDatabaseTest {
+
+    @get:Rule
+    @Suppress("unused")
+    var instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @get:Rule
     val testHelper = MigrationTestHelper(getInstrumentation(), AppDatabase::class.qualifiedName, FrameworkSQLiteOpenHelperFactory())
 
     @Test
     fun whenMigratingFromVersion1To2ThenValidationSucceeds() {
-        testHelper.createDatabase(TEST_DB_NAME, 1).close()
-        testHelper.runMigrationsAndValidate(TEST_DB_NAME, 2, true, AppDatabase.MIGRATION_1_TO_2)
+        createDatabaseAndMigrate(1, 2, AppDatabase.MIGRATION_1_TO_2)
     }
 
     @Test
     fun whenMigratingFromVersion2To3ThenValidationSucceeds() {
-        testHelper.createDatabase(TEST_DB_NAME, 2).close()
-        testHelper.runMigrationsAndValidate(TEST_DB_NAME, 3, true, AppDatabase.MIGRATION_2_TO_3)
+        createDatabaseAndMigrate(2, 3, AppDatabase.MIGRATION_2_TO_3)
     }
 
     @Test
@@ -50,19 +52,17 @@ class AppDatabaseTest {
         testHelper.createDatabase(TEST_DB_NAME, 2).use {
             it.execSQL("INSERT INTO `network_leaderboard` VALUES ('Network2', 'example.com')")
         }
-        assertTrue(database().networkLeaderboardDao().trackerNetworkTally().blockingObserve()!!.isEmpty())
+        assertTrue(database().networkLeaderboardDao().trackerNetworkLeaderboard().blockingObserve()!!.isEmpty())
     }
 
     @Test
     fun whenMigratingFromVersion3To4ThenValidationSucceeds() {
-        testHelper.createDatabase(TEST_DB_NAME, 3).close()
-        testHelper.runMigrationsAndValidate(TEST_DB_NAME, 4, true, AppDatabase.MIGRATION_3_TO_4)
+        createDatabaseAndMigrate(3, 4, AppDatabase.MIGRATION_3_TO_4)
     }
 
     @Test
     fun whenMigratingFromVersion4To5ThenValidationSucceeds() {
-        testHelper.createDatabase(TEST_DB_NAME, 4).close()
-        testHelper.runMigrationsAndValidate(TEST_DB_NAME, 5, true, AppDatabase.MIGRATION_4_TO_5)
+        createDatabaseAndMigrate(4, 5, AppDatabase.MIGRATION_4_TO_5)
     }
 
     @Test
@@ -79,18 +79,83 @@ class AppDatabaseTest {
 
     @Test
     fun whenMigratingFromVersion4To5ThenTabsAreConsideredViewed() {
-
         testHelper.createDatabase(TEST_DB_NAME, 4).use {
             it.execSQL("INSERT INTO `tabs` values ('tabid1', 'url', 'title') ")
         }
-
         assertTrue(database().tabsDao().tabs()[0].viewed)
+    }
+
+    @Test
+    fun whenMigratingFromVersion5To6ThenValidationSucceeds() {
+        createDatabaseAndMigrate(5, 6, AppDatabase.MIGRATION_5_TO_6)
+    }
+
+    @Test
+    fun whenMigratingFromVersion6To7ThenValidationSucceeds() {
+        createDatabaseAndMigrate(6, 7, AppDatabase.MIGRATION_6_TO_7)
+    }
+
+    @Test
+    fun whenMigratingFromVersion7To8ThenValidationSucceeds() {
+        createDatabaseAndMigrate(7, 8, AppDatabase.MIGRATION_7_TO_8)
+    }
+
+    @Test
+    fun whenMigratingFromVersion8To9ThenValidationSucceeds() {
+        createDatabaseAndMigrate(8, 9, AppDatabase.MIGRATION_8_TO_9)
+    }
+
+    @Test
+    fun whenMigratingFromVersion9To10ThenValidationSucceeds() {
+        createDatabaseAndMigrate(9, 10, AppDatabase.MIGRATION_9_TO_10)
+    }
+
+    @Test
+    fun whenMigratingFromVersion10To11ThenValidationSucceeds() {
+        createDatabaseAndMigrate(10, 11, AppDatabase.MIGRATION_10_TO_11)
+    }
+
+    @Test
+    fun whenMigratingFromVersion11To12ThenValidationSucceeds() {
+        createDatabaseAndMigrate(11, 12, AppDatabase.MIGRATION_11_TO_12)
+    }
+
+    @Test
+    fun whenMigratingFromVersion11To12ThenTabsDoNotSkipHome() {
+        testHelper.createDatabase(TEST_DB_NAME, 11).use {
+            it.execSQL("INSERT INTO `tabs` values ('tabid1', 'url', 'title', 1, 0) ")
+        }
+        assertFalse(database().tabsDao().tabs()[0].skipHome)
+    }
+
+    @Test
+    fun whenMigratingFromVersion12To13ThenValidationSucceeds() {
+        createDatabaseAndMigrate(12, 13, AppDatabase.MIGRATION_12_TO_13)
+    }
+
+    @Test
+    fun whenMigratingFromVersion13To14ThenValidationSucceeds() {
+        createDatabaseAndMigrate(13, 14, AppDatabase.MIGRATION_13_TO_14)
+    }
+
+
+    private fun createDatabase(version: Int) {
+        testHelper.createDatabase(TEST_DB_NAME, version).close()
+    }
+
+    private fun runMigrations(newVersion: Int, vararg migrations: Migration) {
+        testHelper.runMigrationsAndValidate(TEST_DB_NAME, newVersion, true, *migrations)
+    }
+
+    private fun createDatabaseAndMigrate(originalVersion: Int, newVersion: Int, vararg migrations: Migration) {
+        createDatabase(originalVersion)
+        runMigrations(newVersion, *migrations)
     }
 
     private fun database(): AppDatabase {
         val database = Room
-            .databaseBuilder(InstrumentationRegistry.getTargetContext(), AppDatabase::class.java, TEST_DB_NAME)
-            .addMigrations(AppDatabase.MIGRATION_1_TO_2, AppDatabase.MIGRATION_2_TO_3, AppDatabase.MIGRATION_3_TO_4, AppDatabase.MIGRATION_4_TO_5)
+            .databaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext, AppDatabase::class.java, TEST_DB_NAME)
+            .addMigrations(*AppDatabase.ALL_MIGRATIONS.toTypedArray())
             .allowMainThreadQueries()
             .build()
 

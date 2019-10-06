@@ -16,7 +16,13 @@
 
 <resources>
 
-    <style name="AppTheme" parent="Theme.AppCompat.Light">
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.Bridge">
+
+        <!-- These neutral colors cover cases before dynamic theme can be applied
+             such as the app launch color -->
+        <item name="colorPrimary">@color/almostBlackDark</item>
+        <item name="colorPrimaryDark">@color/almostBlackDark</item>
+        <item name="colorAccent">@color/cornflowerBlue</item>
         <item name="android:windowBackground">?attr/colorPrimaryDark</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
@@ -27,24 +33,40 @@
     <style name="AppTheme.BaseDark">
         <item name="colorPrimary">@color/darkThemePrimary</item>
         <item name="colorPrimaryDark">@color/darkThemePrimaryDark</item>
-        <item name="colorAccent">@color/darkThemeAccent</item>
         <item name="daxLogoTextColor">@color/white</item>
         <item name="normalTextColor">@color/white</item>
         <item name="toolbarIconColor">@color/grayish</item>
         <item name="toolbarTextColor">@color/grayish</item>
-        <item name="omnibarEditingBackgroundColor">@color/midGray</item>
+        <item name="omnibarRoundedFieldBackgroundColor">@color/midGray</item>
         <item name="omnibarTextColor">@color/white</item>
         <item name="omnibarHintColor">@color/grayishTwo</item>
         <item name="autoCompleteTextColor">@color/white</item>
-        <item name="tabsBackgroundColor">?attr/colorPrimary</item>
-        <item name="tabTitleTextColor">@color/midnight</item>
+        <item name="autoCompleteSubtitleTextColor">@color/grayish</item>
+        <item name="tabTitleTextColor">@color/white</item>
+        <item name="tabTitleTextColorLegacy">@color/midnight</item>
         <item name="tabSubtitleTextColor">@color/coolGray</item>
+        <item name="tabSelectedBorderColor">@color/skyBlue</item>
+        <item name="tabsFireTextColor">@color/white</item>
+        <item name="tabCardBackgroundColor">@color/almostBlack</item>
         <item name="bookmarkIconColor">@color/white</item>
         <item name="bookmarkTitleTextColor">@color/white</item>
         <item name="bookmarkSubtitleTextColor">@color/grayishTwo</item>
-        <item name="settingsSectionTextColor">@color/grayishTwo</item>
         <item name="settingsItemTextColor">@color/white</item>
+        <item name="settingsItemTextColorDisabled">@color/midGray</item>
         <item name="settingsMinorTextColor">@color/grayishTwo</item>
+        <item name="settingsSwitchBackgroundColor">@color/subtleGrayTwo</item>
+        <item name="settingsDividerColor">@color/almostBlack</item>
+        <item name="buttonOutlinedTextColor">@color/pinkishGrayThree</item>
+        <item name="buttonOutlinedBorderColor">@color/brownishGrayTwo</item>
+        <item name="callToActionTitleColor">@color/white</item>
+        <item name="callToActionSubtitleColor">@color/grayishThree</item>
+
+        <item name="feedbackAnonymousFeedbackLabelColor">@color/grayish</item>
+        <item name="feedbackListItemBackgroundColor">@color/almostBlack</item>
+        <item name="feedbackListItemSeparatorColor">@color/charcoalGrey</item>
+        <item name="feedbackEditTextBackgroundColor">@color/almostBlack</item>
+        <item name="feedbackEditTextHintColor">@color/grayish</item>
+
     </style>
 
     <style name="AppTheme.Dark" parent="AppTheme.BaseDark" />
@@ -68,24 +90,40 @@
     <style name="AppTheme.BaseLight">
         <item name="colorPrimary">@color/lightThemePrimary</item>
         <item name="colorPrimaryDark">@color/lightThemePrimaryDark</item>
-        <item name="colorAccent">@color/lightThemeAccent</item>
         <item name="daxLogoTextColor">@color/greyishBrownTwo</item>
         <item name="normalTextColor">@color/grayishBrown</item>
         <item name="toolbarIconColor">@color/grayishBrown</item>
         <item name="toolbarTextColor">@color/grayishBrown</item>
-        <item name="omnibarEditingBackgroundColor">@color/whiteFour</item>
+        <item name="omnibarRoundedFieldBackgroundColor">@color/whiteFour</item>
         <item name="omnibarTextColor">@color/brownishGrayTwo</item>
         <item name="omnibarHintColor">@color/warmGray</item>
         <item name="autoCompleteTextColor">@color/grayishBrown</item>
-        <item name="tabsBackgroundColor">@color/greyishBrownTwo</item>
+        <item name="autoCompleteSubtitleTextColor">@color/warmerGray</item>
         <item name="tabTitleTextColor">@color/almostBlack</item>
+        <item name="tabTitleTextColorLegacy">@color/almostBlack</item>
         <item name="tabSubtitleTextColor">@color/warmerGray</item>
+        <item name="tabSelectedBorderColor">@color/cornflowerBlue</item>
+        <item name="tabsFireTextColor">@color/warmerGray</item>
+        <item name="tabCardBackgroundColor">@color/white</item>
         <item name="bookmarkIconColor">@color/grayishBrown</item>
         <item name="bookmarkTitleTextColor">@color/almostBlack</item>
         <item name="bookmarkSubtitleTextColor">@color/warmerGray</item>
-        <item name="settingsSectionTextColor">@color/warmerGray</item>
         <item name="settingsItemTextColor">@color/grayishBrown</item>
+        <item name="settingsItemTextColorDisabled">@color/pinkish_grey_two</item>
         <item name="settingsMinorTextColor">@color/warmerGray</item>
+        <item name="settingsSwitchBackgroundColor">@color/brownishGrayTwo</item>
+        <item name="settingsDividerColor">@color/whiteSix</item>
+        <item name="buttonOutlinedTextColor">@color/cornflowerDark</item>
+        <item name="buttonOutlinedBorderColor">@color/grayishThree</item>
+        <item name="callToActionTitleColor">@color/almostBlack</item>
+        <item name="callToActionSubtitleColor">@color/brownishGrayTwo</item>
+
+        <item name="feedbackAnonymousFeedbackLabelColor">@color/warmerGray</item>
+        <item name="feedbackListItemBackgroundColor">@color/whiteFive</item>
+        <item name="feedbackListItemSeparatorColor">@color/whiteSix</item>
+        <item name="feedbackEditTextBackgroundColor">@color/whiteFive</item>
+        <item name="feedbackEditTextHintColor">@color/warmerGray</item>
+
     </style>
 
     <style name="AppTheme.Light" parent="AppTheme.BaseLight">
@@ -93,28 +131,36 @@
         <item name="android:statusBarColor">@color/almostBlack</item>
     </style>
 
-    <style name="SplashTheme" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowBackground">?attr/colorPrimaryDark</item>
-    </style>
-
     <style name="ModalCardTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="colorPrimary">@color/darkThemePrimary</item>
         <item name="colorPrimaryDark">@color/darkThemePrimaryDark</item>
-        <item name="colorAccent">@color/midGreen</item>
+        <item name="colorAccent">@color/cornflowerBlue</item>
         <item name="android:windowBackground">@color/translucentDark</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@android:style/Animation</item>
+        <item name="toolbarIconColor">@color/grayish</item>
     </style>
 
     <style name="ToolbarTheme" parent="ThemeOverlay.AppCompat.Dark.ActionBar">
         <item name="colorControlNormal">?attr/toolbarIconColor</item>
         <item name="android:textColorPrimary">?attr/toolbarTextColor</item>
+        <item name="colorControlHighlight">@color/subtleGrayTwo</item>
+    </style>
+
+    <style name="OmnibarToolbarTheme">
+        <item name="colorControlHighlight">@color/subtleGrayTwo</item>
     </style>
 
     <style name="SwitchTheme" parent="Widget.AppCompat.CompoundButton.Switch">
         <item name="colorControlActivated">@android:color/white</item>
+    </style>
+
+    <style name="SettingsSwitchTheme">
+        <item name="colorControlActivated">@color/cornflowerBlue</item>
+        <item name="colorSwitchThumbNormal">@color/white</item>
+        <item name="android:colorForeground">?attr/settingsSwitchBackgroundColor</item>
     </style>
 
 </resources>

@@ -17,9 +17,9 @@
 package com.duckduckgo.app.privacy.renderer
 
 import android.content.Context
-import android.support.annotation.DrawableRes
+import androidx.annotation.DrawableRes
 import com.duckduckgo.app.browser.R
-import com.duckduckgo.app.privacy.db.NetworkLeaderboardDao.NetworkTally
+import com.duckduckgo.app.privacy.db.NetworkLeaderboardEntry
 
 
 class TrackersRenderer {
@@ -27,11 +27,6 @@ class TrackersRenderer {
     fun trackersText(context: Context, trackerCount: Int, allTrackersBlocked: Boolean): String {
         val resource = if (allTrackersBlocked) R.plurals.trackerBlocked else R.plurals.trackersFound
         return context.resources.getQuantityString(resource, trackerCount, trackerCount)
-    }
-
-    fun networksText(context: Context, networkCount: Int, allTrackersBlocked: Boolean): String {
-        val resource = if (allTrackersBlocked) R.plurals.networksBlocked else R.plurals.networksFound
-        return context.resources.getQuantityString(resource, networkCount, networkCount)
     }
 
     fun majorNetworksText(context: Context, networkCount: Int, allTrackersBlocked: Boolean): String {
@@ -68,9 +63,9 @@ class TrackersRenderer {
         return if (resource != 0) resource else null
     }
 
-    fun networkPercentage(tally: NetworkTally, totalDomainsVisited: Int): String? {
-        if (totalDomainsVisited == 0 || tally.domainCount == 0) return ""
-        val to100 = ((tally.domainCount / totalDomainsVisited.toFloat()) * 100).toInt()
+    fun networkPercentage(network: NetworkLeaderboardEntry, totalDomainsVisited: Int): String? {
+        if (totalDomainsVisited == 0 || network.count == 0) return ""
+        val to100 = ((network.count / totalDomainsVisited.toFloat()) * 100).toInt()
         return "$to100%"
     }
 

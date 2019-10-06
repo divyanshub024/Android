@@ -34,24 +34,14 @@ fun Uri.withScheme(): Uri {
 val Uri.baseHost: String?
     get() = withScheme().host?.removePrefix("www.")
 
-/**
- * Return a simple url with scheme, domain and path. Other elements such as username or
- * query parameters are omitted
- */
-val Uri.simpleUrl: String
-    get() {
-        var string = ""
-        if (scheme != null) { string = "$scheme://" }
-        if (host != null) { string += host }
-        if (path != null) { string += path }
-        return string
-    }
-
 val Uri.isHttp: Boolean
-    get() = scheme?.equals(UrlScheme.http, true) ?: false
+    get() = scheme?.equals(http, true) ?: false
 
 val Uri.isHttps: Boolean
     get() = scheme?.equals(UrlScheme.https, true) ?: false
+
+val Uri.toHttps: Uri
+    get() = buildUpon().scheme(UrlScheme.https).build()
 
 val Uri.hasIpHost: Boolean
     get() {
@@ -59,21 +49,32 @@ val Uri.hasIpHost: Boolean
         return baseHost?.matches(ipRegex) ?: false
     }
 
-val Uri.isMobileSite: Boolean
-    get() = authority.startsWith("m.")
-
-fun Uri.toDesktopUri(): Uri {
-    return if (isMobileSite) {
-        Uri.parse(toString().replaceFirst("m.", ""))
-    } else {
-        this
-    }
+fun Uri.isHttpsVersionOfUri(other: Uri): Boolean {
+    return isHttps && other.isHttp && other.toHttps == this
 }
 
-private const val faviconBaseUrlFormat = "https://icons.duckduckgo.com/ip3/%s.ico"
+private val MOBILE_URL_PREFIXES = listOf("m.", "mobile.")
+
+val Uri.isMobileSite: Boolean
+    get() {
+        val auth = authority ?: return false
+        return MOBILE_URL_PREFIXES.firstOrNull { auth.startsWith(it) } != null
+    }
+
+fun Uri.toDesktopUri(): Uri {
+    if (!isMobileSite) return this
+
+    val newUrl = MOBILE_URL_PREFIXES.fold(toString()) { url, prefix ->
+        url.replaceFirst(prefix, "")
+    }
+
+    return parse(newUrl)
+}
+
+private const val faviconBaseUrlFormat = "https://proxy.duckduckgo.com/ip3/%s.ico"
 
 fun Uri?.faviconLocation(): Uri? {
     val host = this?.host
     if (host.isNullOrBlank()) return null
-    return Uri.parse(String.format(faviconBaseUrlFormat, host))
+    return parse(String.format(faviconBaseUrlFormat, host))
 }

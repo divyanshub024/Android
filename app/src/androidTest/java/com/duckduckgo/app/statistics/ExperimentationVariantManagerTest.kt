@@ -16,10 +16,9 @@
 
 package com.duckduckgo.app.statistics
 
-import android.os.Build
-import android.support.test.filters.SdkSuppress
 import com.duckduckgo.app.statistics.store.StatisticsDataStore
-import com.nhaarman.mockito_kotlin.*
+import com.duckduckgo.app.widget.ui.WidgetCapabilities
+import com.nhaarman.mockitokotlin2.*
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -30,6 +29,7 @@ class ExperimentationVariantManagerTest {
     private lateinit var testee: ExperimentationVariantManager
 
     private val mockStore: StatisticsDataStore = mock()
+    private val mockWidgetCapabilities: WidgetCapabilities = mock()
     private val mockRandomizer: IndexRandomizer = mock()
     private val activeVariants = mutableListOf<Variant>()
 
@@ -43,7 +43,7 @@ class ExperimentationVariantManagerTest {
 
     @Test
     fun whenVariantAlreadyPersistedThenVariantReturned() {
-        activeVariants.add(Variant("foo", 100.0))
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
         whenever(mockStore.variant).thenReturn("foo")
 
         assertEquals("foo", testee.getVariant(activeVariants).key)
@@ -51,7 +51,7 @@ class ExperimentationVariantManagerTest {
 
     @Test
     fun whenVariantAlreadyPersistedThenVariantAllocatorNeverInvoked() {
-        activeVariants.add(Variant("foo", 100.0))
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
         whenever(mockStore.variant).thenReturn("foo")
 
         testee.getVariant(activeVariants)
@@ -77,7 +77,7 @@ class ExperimentationVariantManagerTest {
 
     @Test
     fun whenVariantPersistedIsNotFoundInActiveVariantListThenRestoredToDefaultVariant() {
-        activeVariants.add(Variant("foo", 100.0))
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
         whenever(mockStore.variant).thenReturn("bar")
 
         assertEquals(VariantManager.DEFAULT_VARIANT, testee.getVariant(activeVariants))
@@ -85,7 +85,7 @@ class ExperimentationVariantManagerTest {
 
     @Test
     fun whenVariantPersistedIsNotFoundInActiveVariantListThenNewVariantIsPersisted() {
-        activeVariants.add(Variant("foo", 100.0))
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
 
         whenever(mockStore.variant).thenReturn("bar")
         testee.getVariant(activeVariants)
@@ -95,9 +95,8 @@ class ExperimentationVariantManagerTest {
 
 
     @Test
-    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.N)
-    fun whenNougatOrLaterAndNoVariantPersistedThenNewVariantAllocated() {
-        activeVariants.add(Variant("foo", 100.0))
+    fun whenNoVariantPersistedThenNewVariantAllocated() {
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
 
         testee.getVariant(activeVariants)
 
@@ -105,9 +104,8 @@ class ExperimentationVariantManagerTest {
     }
 
     @Test
-    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.N)
-    fun whenNougatOrLaterAndNoVariantPersistedThenNewVariantKeyIsAllocatedAndPersisted() {
-        activeVariants.add(Variant("foo", 100.0))
+    fun whenNoVariantPersistedThenNewVariantKeyIsAllocatedAndPersisted() {
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
 
         testee.getVariant(activeVariants)
 
@@ -115,20 +113,20 @@ class ExperimentationVariantManagerTest {
     }
 
     @Test
-    @SdkSuppress(maxSdkVersion = Build.VERSION_CODES.M)
-    fun whenMarshmallowOrEarlierAndNoVariantPersistedThenDefaultVariantAllocated() {
-        activeVariants.add(Variant("foo", 100.0))
-
-        assertEquals(VariantManager.DEFAULT_VARIANT, testee.getVariant(activeVariants))
-    }
-
-    @Test
-    @SdkSuppress(maxSdkVersion = Build.VERSION_CODES.M)
-    fun whenMarshmallowOrEarlierAndNoVariantPersistedThenDefaultVariantKeyIsAllocatedAndPersisted() {
-        activeVariants.add(Variant("foo", 100.0))
+    fun whenVariantDoesNotComplyWithFiltersThenDefaultVariantIsPersisted() {
+        activeVariants.add(Variant("foo", 100.0, filterBy = { false }))
 
         testee.getVariant(activeVariants)
 
         verify(mockStore).variant = VariantManager.DEFAULT_VARIANT.key
+    }
+
+    @Test
+    fun whenVariantDoesComplyWithFiltersThenNewVariantKeyIsAllocatedAndPersisted() {
+        activeVariants.add(Variant("foo", 100.0, filterBy = { true }))
+
+        testee.getVariant(activeVariants)
+
+        verify(mockStore).variant = "foo"
     }
 }

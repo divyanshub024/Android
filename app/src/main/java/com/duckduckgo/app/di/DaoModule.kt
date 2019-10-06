@@ -44,4 +44,24 @@ class DaoModule {
     @Provides
     fun appConfigurationDao(database: AppDatabase) = database.appConfigurationDao()
 
+    @Provides
+    fun networkEntityDao(database: AppDatabase) = database.networkEntityDao()
+
+    @Provides
+    fun surveyDao(database: AppDatabase) = database.surveyDao()
+
+    @Provides
+    fun dismissedCtaDao(database: AppDatabase) = database.dismissedCtaDao()
+
+    @Provides
+    fun searchCountDao(database: AppDatabase) = database.searchCountDao()
+
+    @Provides
+    fun appDaysUsedDao(database: AppDatabase) = database.appsDaysUsedDao()
+
+    @Provides
+    fun notification(database: AppDatabase) = database.notificationDao()
+
+    @Provides
+    fun privacyProtectionCounts(database: AppDatabase) = database.privacyProtectionCountsDao()
 }

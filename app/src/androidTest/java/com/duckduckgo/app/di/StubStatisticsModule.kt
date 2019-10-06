@@ -16,6 +16,9 @@
 
 package com.duckduckgo.app.di
 
+import android.content.Context
+import com.duckduckgo.app.global.device.ContextDeviceInfo
+import com.duckduckgo.app.global.device.DeviceInfo
 import com.duckduckgo.app.statistics.api.StatisticsService
 import com.duckduckgo.app.statistics.api.StatisticsUpdater
 import com.duckduckgo.app.statistics.pixels.Pixel
@@ -34,11 +37,16 @@ class StubStatisticsModule {
     @Provides
     fun stubStatisticsUpdater(): StatisticsUpdater {
         return object : StatisticsUpdater {
-            override fun refreshRetentionAtb() {
-            }
 
             override fun initializeAtb() {
             }
+
+            override fun refreshAppRetentionAtb() {
+            }
+
+            override fun refreshSearchRetentionAtb() {
+            }
+
         }
     }
 
@@ -49,10 +57,16 @@ class StubStatisticsModule {
             override fun fire(pixel: Pixel.PixelName, parameters: Map<String, String?>) {
             }
 
-            override fun fireCompletable(pixel: Pixel.PixelName, parameters: Map<String, String?>): Completable {
-                return Completable.fromAction {}
+            override fun fire(pixelName: String, parameters: Map<String, String?>) {
+
             }
 
+            override fun fireCompletable(pixelName: String, parameters: Map<String, String?>): Completable {
+                return Completable.fromAction {}
+            }
         }
     }
+
+    @Provides
+    fun deviceInfo(context: Context): DeviceInfo = ContextDeviceInfo(context)
 }

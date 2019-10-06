@@ -18,15 +18,24 @@ package com.duckduckgo.app.global.install
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.support.annotation.VisibleForTesting
+import androidx.annotation.VisibleForTesting
 import androidx.core.content.edit
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 
 interface AppInstallStore {
     var installTimestamp: Long
 
+    var widgetInstalled: Boolean
+
+    var defaultBrowser: Boolean
+
     fun hasInstallTimestampRecorded(): Boolean
+}
+
+fun AppInstallStore.daysInstalled(): Long {
+    return TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() - installTimestamp)
 }
 
 class AppInstallSharedPreferences @Inject constructor(private val context: Context) : AppInstallStore {
@@ -34,15 +43,25 @@ class AppInstallSharedPreferences @Inject constructor(private val context: Conte
         get() = preferences.getLong(KEY_TIMESTAMP_UTC, 0L)
         set(timestamp) = preferences.edit { putLong(KEY_TIMESTAMP_UTC, timestamp) }
 
+    override var widgetInstalled: Boolean
+        get() = preferences.getBoolean(KEY_WIDGET_INSTALLED, false)
+        set(widgetInstalled) = preferences.edit { putBoolean(KEY_WIDGET_INSTALLED, widgetInstalled) }
+
+    override var defaultBrowser: Boolean
+        get() = preferences.getBoolean(KEY_DEFAULT_BROWSER, false)
+        set(defaultBrowser) = preferences.edit { putBoolean(KEY_DEFAULT_BROWSER, defaultBrowser) }
+
     override fun hasInstallTimestampRecorded(): Boolean = preferences.contains(KEY_TIMESTAMP_UTC)
 
     private val preferences: SharedPreferences
         get() = context.getSharedPreferences(FILENAME, Context.MODE_PRIVATE)
 
     companion object {
-
         @VisibleForTesting
         const val FILENAME = "com.duckduckgo.app.install.settings"
         const val KEY_TIMESTAMP_UTC = "INSTALL_TIMESTAMP_UTC"
+        const val KEY_WIDGET_INSTALLED = "KEY_WIDGET_INSTALLED"
+        const val KEY_DEFAULT_BROWSER = "KEY_DEFAULT_BROWSER"
     }
 }
+

@@ -18,12 +18,13 @@ package com.duckduckgo.app.browser
 
 import android.content.Intent
 import android.net.Uri
+import com.duckduckgo.app.browser.SpecialUrlDetector.UrlType
 import timber.log.Timber
 import java.net.URISyntaxException
-import javax.inject.Inject
 
-
-class SpecialUrlDetector @Inject constructor() {
+interface SpecialUrlDetector {
+    fun determineType(uri: Uri): UrlType
+    fun determineType(uriString: String?): UrlType
 
     sealed class UrlType {
         class Web(val webAddress: String) : UrlType()
@@ -35,20 +36,24 @@ class SpecialUrlDetector @Inject constructor() {
         class Unknown(val url: String) : UrlType()
     }
 
-    fun determineType(uri: Uri): UrlType {
-        val uriString = uri.toString()
-        val scheme = uri.scheme
+}
 
-        return when (scheme) {
+class SpecialUrlDetectorImpl : SpecialUrlDetector {
+
+    override fun determineType(uri: Uri): UrlType {
+        val uriString = uri.toString()
+
+        return when (val scheme = uri.scheme) {
             TEL_SCHEME -> buildTelephone(uriString)
             TELPROMPT_SCHEME -> buildTelephonePrompt(uriString)
             MAILTO_SCHEME -> buildEmail(uriString)
             SMS_SCHEME -> buildSms(uriString)
             SMSTO_SCHEME -> buildSmsTo(uriString)
-            HTTP_SCHEME, HTTPS_SCHEME -> UrlType.Web(uriString)
+            HTTP_SCHEME, HTTPS_SCHEME, DATA_SCHEME -> UrlType.Web(uriString)
             ABOUT_SCHEME -> UrlType.Unknown(uriString)
+            JAVASCRIPT_SCHEME -> UrlType.SearchQuery(uriString)
             null -> UrlType.SearchQuery(uriString)
-            else -> buildIntent(uriString)
+            else -> checkForIntent(scheme, uriString)
         }
     }
 
@@ -62,6 +67,15 @@ class SpecialUrlDetector @Inject constructor() {
 
     private fun buildSmsTo(uriString: String) = UrlType.Sms(uriString.removePrefix("$SMSTO_SCHEME:"))
 
+    private fun checkForIntent(scheme: String, uriString: String): UrlType {
+        val validUriSchemeRegex = Regex("[a-z][a-zA-Z\\d+.-]+")
+        if (scheme.matches(validUriSchemeRegex)){
+            return buildIntent(uriString)
+        }
+
+        return UrlType.SearchQuery(uriString)
+    }
+
     private fun buildIntent(uriString: String): UrlType {
         return try {
             val intent = Intent.parseUri(uriString, 0)
@@ -73,7 +87,7 @@ class SpecialUrlDetector @Inject constructor() {
         }
     }
 
-    fun determineType(uriString: String?): UrlType {
+    override fun determineType(uriString: String?): UrlType {
         if (uriString == null) return UrlType.Web("")
 
         return determineType(Uri.parse(uriString))
@@ -88,6 +102,8 @@ class SpecialUrlDetector @Inject constructor() {
         private const val HTTP_SCHEME = "http"
         private const val HTTPS_SCHEME = "https"
         private const val ABOUT_SCHEME = "about"
+        private const val DATA_SCHEME = "data"
+        private const val JAVASCRIPT_SCHEME = "javascript"
 
         private const val EXTRA_FALLBACK_URL = "browser_fallback_url"
     }

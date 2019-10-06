@@ -18,25 +18,14 @@ package com.duckduckgo.app.onboarding.ui
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.support.annotation.ColorInt
-import android.support.annotation.RequiresApi
-import android.support.v4.content.ContextCompat
-import android.view.View
+import com.duckduckgo.app.browser.BrowserActivity
 import com.duckduckgo.app.browser.R
 import com.duckduckgo.app.global.DuckDuckGoActivity
-import com.duckduckgo.app.global.view.ColorCombiner
-import com.duckduckgo.app.global.view.launchDefaultAppActivity
-import com.duckduckgo.app.onboarding.ui.ColorChangingPageListener.NewColorListener
 import kotlinx.android.synthetic.main.activity_onboarding.*
-import javax.inject.Inject
 
 
 class OnboardingActivity : DuckDuckGoActivity() {
-
-    @Inject
-    lateinit var colorCombiner: ColorCombiner
 
     private lateinit var viewPageAdapter: PagerAdapter
 
@@ -48,46 +37,37 @@ class OnboardingActivity : DuckDuckGoActivity() {
         configurePager()
     }
 
-    override fun onResume() {
-        updateColor(viewPageAdapter.color(this, viewPager.currentItem))
-        super.onResume()
-    }
-
-    fun onContinueClicked(view: View) {
+    fun onContinueClicked() {
         val next = viewPager.currentItem + 1
         if (next < viewPager.adapter!!.count) {
             viewPager.setCurrentItem(next, true)
         } else {
             viewModel.onOnboardingDone()
+            startActivity(BrowserActivity.intent(this))
             finish()
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
-    fun onLaunchDefaultBrowserSettingsClicked(view: View) {
-        launchDefaultAppActivity()
-    }
-
     private fun configurePager() {
+        viewModel.initializePages()
 
         viewPageAdapter = PagerAdapter(supportFragmentManager, viewModel)
+        viewPager.offscreenPageLimit = 1
         viewPager.adapter = viewPageAdapter
-        val pageListener = ColorChangingPageListener(colorCombiner, object : NewColorListener {
-            override fun update(@ColorInt color: Int) = updateColor(color)
-            override fun getColorForPage(position: Int): Int? {
-                val color = viewPageAdapter.getItem(position)?.backgroundColor() ?: return null
-                return ContextCompat.getColor(this@OnboardingActivity, color)
-            }
-        })
-
-        viewPager.addOnPageChangeListener(pageListener)
+        viewPager.setSwipingEnabled(false)
     }
 
-    private fun updateColor(@ColorInt color: Int) {
-        viewPager.setBackgroundColor(color)
+    override fun onBackPressed() {
+        val currentPage = viewPager.currentItem
+        if (currentPage == 0) {
+            finish()
+        } else {
+            viewPager.setCurrentItem(currentPage - 1, true)
+        }
     }
 
     companion object {
+
         fun intent(context: Context): Intent {
             return Intent(context, OnboardingActivity::class.java)
         }

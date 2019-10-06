@@ -17,13 +17,15 @@
 package com.duckduckgo.app.di
 
 import android.app.Application
-import com.duckduckgo.app.browser.autoComplete.BrowserAutoCompleteModule
+import com.duckduckgo.app.browser.autocomplete.BrowserAutoCompleteModule
 import com.duckduckgo.app.browser.di.BrowserModule
 import com.duckduckgo.app.browser.favicon.FaviconModule
+import com.duckduckgo.app.browser.rating.di.RatingModule
 import com.duckduckgo.app.httpsupgrade.di.HttpsUpgraderModule
 import com.duckduckgo.app.onboarding.di.OnboardingModule
 import com.duckduckgo.app.surrogates.di.ResourceSurrogateModule
 import com.duckduckgo.app.trackerdetection.di.TrackerDetectionModule
+import com.duckduckgo.app.usage.di.AppUsageModule
 import dagger.BindsInstance
 import dagger.Component
 import dagger.android.support.AndroidSupportInjectionModule
@@ -44,6 +46,7 @@ import javax.inject.Singleton
 
         /* real modules */
         ApplicationModule::class,
+        WorkerModule::class,
         AndroidBindingModule::class,
         AndroidSupportInjectionModule::class,
         NetworkModule::class,
@@ -57,7 +60,13 @@ import javax.inject.Singleton
         NotificationModule::class,
         OnboardingModule::class,
         VariantModule::class,
-        FaviconModule::class
+        FaviconModule::class,
+        TrackersModule::class,
+        PrivacyModule::class,
+        WidgetModule::class,
+        RatingModule::class,
+        AppUsageModule::class,
+        FileModule::class
     ]
 )
 interface TestAppComponent : AppComponent {

@@ -14,28 +14,37 @@
  * limitations under the License.
  */
 
+@file:Suppress("RemoveExplicitTypeArguments")
+
 package com.duckduckgo.app.browser
 
-import android.support.test.InstrumentationRegistry
+import android.content.Context
 import android.view.View
 import android.webkit.WebChromeClient
-import com.nhaarman.mockito_kotlin.mock
-import com.nhaarman.mockito_kotlin.times
-import com.nhaarman.mockito_kotlin.verify
+import android.webkit.WebView
+import androidx.test.annotation.UiThreadTest
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
+import com.nhaarman.mockitokotlin2.any
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.times
+import com.nhaarman.mockitokotlin2.verify
 import org.junit.Before
 import org.junit.Test
 
 class BrowserChromeClientTest {
 
     private lateinit var testee: BrowserChromeClient
+    private lateinit var webView: TestWebView
     private lateinit var mockWebViewClientListener: WebViewClientListener
-    private val fakeView = View(InstrumentationRegistry.getTargetContext())
+    private val fakeView = View(getInstrumentation().targetContext)
 
+    @UiThreadTest
     @Before
     fun setup() {
         testee = BrowserChromeClient()
         mockWebViewClientListener = mock()
         testee.webViewClientListener = mockWebViewClientListener
+        webView = TestWebView(getInstrumentation().targetContext)
     }
 
     @Test
@@ -66,4 +75,20 @@ class BrowserChromeClientTest {
         testee.onHideCustomView()
         verify(mockWebViewClientListener).exitFullScreen()
     }
+
+    @UiThreadTest
+    @Test
+    fun whenOnProgressChangedCalledThenListenerInstructedToUpdateProgress() {
+        testee.onProgressChanged(webView, 10)
+        verify(mockWebViewClientListener).progressChanged(10)
+    }
+
+    @UiThreadTest
+    @Test
+    fun whenOnProgressChangedCalledThenListenerInstructedToUpdateNavigationState() {
+        testee.onProgressChanged(webView, 10)
+        verify(mockWebViewClientListener).navigationStateChanged(any())
+    }
+
+    private class TestWebView(context: Context) : WebView(context)
 }

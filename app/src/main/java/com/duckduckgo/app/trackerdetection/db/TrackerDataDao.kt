@@ -16,7 +16,7 @@
 
 package com.duckduckgo.app.trackerdetection.db
 
-import android.arch.persistence.room.*
+import androidx.room.*
 import com.duckduckgo.app.trackerdetection.model.DisconnectTracker
 
 
@@ -34,6 +34,10 @@ abstract class TrackerDataDao {
 
     @Query("select * from disconnect_tracker")
     abstract fun getAll(): List<DisconnectTracker>
+
+    @Query("select * from disconnect_tracker where url = :url")
+    abstract fun get(url: String): DisconnectTracker?
+
 
     @Query("select count(*) from disconnect_tracker")
     abstract fun count(): Int

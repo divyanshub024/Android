@@ -16,10 +16,12 @@
 
 package com.duckduckgo.app.job
 
+import com.duckduckgo.app.entities.api.EntityListDownloader
 import com.duckduckgo.app.global.db.AppConfigurationEntity
 import com.duckduckgo.app.global.db.AppDatabase
 import com.duckduckgo.app.httpsupgrade.api.HttpsUpgradeDataDownloader
 import com.duckduckgo.app.surrogates.api.ResourceSurrogateListDownloader
+import com.duckduckgo.app.survey.api.SurveyDownloader
 import com.duckduckgo.app.trackerdetection.Client.ClientName.*
 import com.duckduckgo.app.trackerdetection.api.TrackerDataDownloader
 import io.reactivex.Completable
@@ -33,6 +35,8 @@ class AppConfigurationDownloader(
     private val trackerDataDownloader: TrackerDataDownloader,
     private val httpsUpgradeDataDownloader: HttpsUpgradeDataDownloader,
     private val resourceSurrogateDownloader: ResourceSurrogateListDownloader,
+    private val entityListDownloader: EntityListDownloader,
+    private val surveyDownloader: SurveyDownloader,
     private val appDatabase: AppDatabase
 ) : ConfigurationDownloader {
 
@@ -41,9 +45,10 @@ class AppConfigurationDownloader(
         val easyPrivacyDownload = trackerDataDownloader.downloadList(EASYPRIVACY)
         val trackersWhitelist = trackerDataDownloader.downloadList(TRACKERSWHITELIST)
         val disconnectDownload = trackerDataDownloader.downloadList(DISCONNECT)
+        val entityListDownload = entityListDownloader.download()
         val surrogatesDownload = resourceSurrogateDownloader.downloadList()
         val httpsUpgradeDownload = httpsUpgradeDataDownloader.download()
-        val httpStatisticsReport = httpsUpgradeDataDownloader.reportUpgradeStatistics()
+        val surveyDownload = surveyDownloader.download()
 
         return Completable.mergeDelayError(
             listOf(
@@ -51,9 +56,10 @@ class AppConfigurationDownloader(
                 easyPrivacyDownload,
                 trackersWhitelist,
                 disconnectDownload,
+                entityListDownload,
                 surrogatesDownload,
                 httpsUpgradeDownload,
-                httpStatisticsReport
+                surveyDownload
             )
         ).doOnComplete {
             Timber.i("Download task completed successfully")
@@ -61,6 +67,4 @@ class AppConfigurationDownloader(
             appDatabase.appConfigurationDao().configurationDownloadSuccessful(appConfiguration)
         }
     }
-
-
 }

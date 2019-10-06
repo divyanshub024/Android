@@ -16,51 +16,62 @@
 
 package com.duckduckgo.app.trackerdetection.model
 
-import com.duckduckgo.app.global.UriString.Companion.sameOrSubdomain
-import java.io.Serializable
-import java.util.*
-import javax.inject.Inject
-import javax.inject.Singleton
+import androidx.annotation.WorkerThread
+import androidx.core.net.toUri
+import com.duckduckgo.app.entities.EntityMapping
+import com.duckduckgo.app.global.uri.removeSubdomain
+import com.duckduckgo.app.privacy.store.PrevalenceStore
+import com.duckduckgo.app.trackerdetection.db.TrackerDataDao
 
+interface TrackerNetworks {
+    fun network(url: String): TrackerNetwork?
 
-@Singleton
-class TrackerNetworks @Inject constructor() : Serializable {
+}
+
+class TrackerNetworksLookup(
+    private val prevalenceStore: PrevalenceStore,
+    private val entityMapping: EntityMapping,
+    private val trackerDataDao: TrackerDataDao
+) : TrackerNetworks {
+
+    @WorkerThread
+    override fun network(url: String): TrackerNetwork? {
+
+        val entity = entityMapping.entityForUrl(url) ?: return null
+        val tracker = recursivelyFindMatchingTracker(url)
+        val prevalence = prevalenceStore.findPrevalenceOf(entity.entityName)
+
+        return TrackerNetwork(
+            name = entity.entityName,
+            category = tracker?.category,
+            isMajor = (prevalence ?: 0.0) > MAJOR_NETWORK_PREVALENCE
+        )
+    }
+
+    private fun recursivelyFindMatchingTracker(url: String): DisconnectTracker? {
+        val uri = url.toUri()
+        val host = uri.host ?: return null
+
+        // try searching for exact domain
+        val direct = lookUpTrackerInDatabase(host)
+        if (direct != null) {
+            return direct
+        }
+
+        // remove the first subdomain, and try again
+        val parentDomain = uri.removeSubdomain() ?: return null
+        return recursivelyFindMatchingTracker(parentDomain)
+    }
+
+    @WorkerThread
+    private fun lookUpTrackerInDatabase(url: String): DisconnectTracker? {
+        return trackerDataDao.get(url)
+    }
 
     companion object {
-        var majorNetworks = arrayOf(
-            TrackerNetwork(name = "Google", url = "google.com", percentageOfPages = 84, isMajor = true),
-            TrackerNetwork(name = "Facebook", url = "facebook.com", percentageOfPages = 36, isMajor = true),
-            TrackerNetwork(name = "Twitter", url = "twitter.com", percentageOfPages = 16, isMajor = true),
-            TrackerNetwork(name = "Amazon.com", url = "amazon.com", percentageOfPages = 14, isMajor = true),
-            TrackerNetwork(name = "AppNexus", url = "appnexus.com", percentageOfPages = 10, isMajor = true),
-            TrackerNetwork(name = "Oracle", url = "oracle.com", percentageOfPages = 10, isMajor = true),
-            TrackerNetwork(name = "MediaMath", url = "mediamath.com", percentageOfPages = 9, isMajor = true),
-            TrackerNetwork(name = "Yahoo!", url = "yahoo.com", percentageOfPages = 9, isMajor = true),
-            TrackerNetwork(name = "StackPath", url = "stackpath.com", percentageOfPages = 7, isMajor = true),
-            TrackerNetwork(name = "Automattic", url = "automattic.com", percentageOfPages = 7, isMajor = true)
-        )
-    }
 
-    private var data: List<DisconnectTracker> = ArrayList()
+        const val MAJOR_NETWORK_PREVALENCE = 7.0
 
-    fun updateData(trackers: List<DisconnectTracker>) {
-        this.data = trackers
-    }
-
-    fun network(url: String): TrackerNetwork? {
-        val disconnectEntry = data.find { sameOrSubdomain(url, it.url) || sameOrSubdomain(url, it.networkUrl) } ?: return null
-        val majorEntry = majorNetwork(disconnectEntry.networkName)
-        return TrackerNetwork(
-            name = disconnectEntry.networkName,
-            url = disconnectEntry.networkUrl,
-            category = disconnectEntry.category,
-            percentageOfPages = majorEntry?.percentageOfPages,
-            isMajor = majorEntry != null
-        )
-    }
-
-    private fun majorNetwork(networkName: String): TrackerNetwork? {
-        return majorNetworks.find { it.name.equals(networkName, true) }
     }
 }
 

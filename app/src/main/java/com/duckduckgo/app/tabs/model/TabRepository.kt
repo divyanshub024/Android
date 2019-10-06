@@ -16,8 +16,8 @@
 
 package com.duckduckgo.app.tabs.model
 
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.MutableLiveData
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.duckduckgo.app.global.model.Site
 
 interface TabRepository {
@@ -29,22 +29,24 @@ interface TabRepository {
     /**
      * @return tabId of new record
      */
-    fun add(url: String? = null): String
+    suspend fun add(url: String? = null, skipHome: Boolean = false, isDefaultTab: Boolean = false): String
 
-    fun addNewTabAfterExistingTab(url: String? = null, tabId: String)
+    suspend fun add(tabId: String, data: MutableLiveData<Site>, skipHome: Boolean = false, isDefaultTab: Boolean = false)
 
-    fun add(tabId: String, data: MutableLiveData<Site>)
+    suspend fun addNewTabAfterExistingTab(url: String? = null, tabId: String)
 
-    fun update(tabId: String, site: Site?)
+    suspend fun update(tabId: String, site: Site?)
 
     /**
      * @return record if it exists, otherwise a new one
      */
     fun retrieveSiteData(tabId: String): MutableLiveData<Site>
 
-    fun delete(tab: TabEntity)
+    suspend fun delete(tab: TabEntity)
 
     fun deleteAll()
 
-    fun select(tabId: String)
+    suspend fun select(tabId: String)
+
+    fun updateTabPreviewImage(tabId: String, fileName: String?)
 }

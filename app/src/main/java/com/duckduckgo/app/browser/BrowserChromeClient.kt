@@ -21,18 +21,26 @@ import android.view.View
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 
 
-class BrowserChromeClient @Inject constructor() : WebChromeClient() {
+class BrowserChromeClient @Inject constructor() : WebChromeClient(), CoroutineScope {
+
+    override val coroutineContext: CoroutineContext
+        get() = SupervisorJob() + Dispatchers.Main
+
 
     var webViewClientListener: WebViewClientListener? = null
 
     private var customView: View? = null
 
     override fun onShowCustomView(view: View, callback: CustomViewCallback?) {
-        Timber.i("on show custom view")
+        Timber.d("on show custom view")
 
         if (customView != null) {
             callback?.onCustomViewHidden()
@@ -44,16 +52,17 @@ class BrowserChromeClient @Inject constructor() : WebChromeClient() {
     }
 
     override fun onHideCustomView() {
-        Timber.i("hide custom view")
+        Timber.d("on hide custom view")
 
         webViewClientListener?.exitFullScreen()
         customView = null
     }
 
     override fun onProgressChanged(webView: WebView, newProgress: Int) {
-        val canGoBack = webView.canGoBack()
-        val canGoForward = webView.canGoForward()
-        webViewClientListener?.progressChanged(newProgress, canGoBack, canGoForward)
+        Timber.d("onProgressChanged ${webView.url}, $newProgress")
+        val navigationList = webView.copyBackForwardList()
+        webViewClientListener?.navigationStateChanged(WebViewNavigationState(navigationList))
+        webViewClientListener?.progressChanged(newProgress)
     }
 
     override fun onReceivedTitle(view: WebView, title: String) {

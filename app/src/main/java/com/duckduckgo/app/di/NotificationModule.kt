@@ -18,6 +18,16 @@ package com.duckduckgo.app.di
 
 import android.app.NotificationManager
 import android.content.Context
+import androidx.core.app.NotificationManagerCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.work.WorkManager
+import com.duckduckgo.app.notification.NotificationFactory
+import com.duckduckgo.app.notification.NotificationScheduler
+import com.duckduckgo.app.notification.db.NotificationDao
+import com.duckduckgo.app.notification.model.ClearDataNotification
+import com.duckduckgo.app.notification.model.PrivacyProtectionNotification
+import com.duckduckgo.app.privacy.db.PrivacyProtectionCountDao
+import com.duckduckgo.app.settings.db.SettingsDataStore
 import dagger.Module
 import dagger.Provides
 import javax.inject.Singleton
@@ -31,4 +41,53 @@ class NotificationModule {
         return context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
+    @Provides
+    @Singleton
+    fun provideNotificationManagerCompat(context: Context): NotificationManagerCompat {
+        return NotificationManagerCompat.from(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLocalBroadcastManager(context: Context): LocalBroadcastManager {
+        return LocalBroadcastManager.getInstance(context)
+    }
+
+    @Provides
+    fun provideClearDataNotification(
+        context: Context,
+        notificationDao: NotificationDao,
+        settingsDataStore: SettingsDataStore
+    ): ClearDataNotification {
+        return ClearDataNotification(context, notificationDao, settingsDataStore)
+    }
+
+    @Provides
+    fun providePrivacyProtectionNotification(
+        context: Context,
+        notificationDao: NotificationDao,
+        privacyProtectionCountDao: PrivacyProtectionCountDao
+    ): PrivacyProtectionNotification {
+        return PrivacyProtectionNotification(context, notificationDao, privacyProtectionCountDao)
+    }
+
+    @Provides
+    @Singleton
+    fun providesNotificationScheduler(
+        workManager: WorkManager,
+        clearDataNotification: ClearDataNotification,
+        privacyProtectionNotification: PrivacyProtectionNotification
+    ): NotificationScheduler {
+        return NotificationScheduler(
+            workManager,
+            clearDataNotification,
+            privacyProtectionNotification
+        )
+    }
+
+    @Provides
+    @Singleton
+    fun providesNotificationFactory(context: Context, manager: NotificationManagerCompat): NotificationFactory {
+        return NotificationFactory(context, manager)
+    }
 }
